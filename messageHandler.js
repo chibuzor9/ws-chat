@@ -1,25 +1,29 @@
-import message from "./messageClass.js";
+import Message from "./messageClass.js";
 
 const messageHandler = (ws, message) => {
     const msg = JSON.parse(message);
 
-    const type = msg.type;
-    const content = msg.content;
+    const msgType = msg.type;
+    const msgContent = msg.content;
 
-    if (msg.type === "ping") {
+    if (!Object.values(Message.TYPES).includes(msgType)) {
+        console.error(`Invalid message type: ${msg.type}`);
+        return;
+    }
+
+    if (msgType === "ping") {
+        console.log(`Received: ${msgType} type message`);
+
         ws.send(JSON.stringify({ 
             type: "pong",
             content: "pong"
         }));
-    } else if (msg.type === "pong") {
-        ws.send(JSON.stringify({ 
-            type: "ping",
-            content: "ping"
-        }));
-    } else if (msg.type === "message") {
+    } else if (msgType === "pong") {
+        console.log("Received pong");
+    } else if (msgType === "chat") {
         // do something
     } else {
-        // do something
+        console.log(`Undefined message type use: ${msgType}`);
     }
 };
 

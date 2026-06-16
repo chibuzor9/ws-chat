@@ -12,7 +12,6 @@ server.on("connection", (ws) => {
     console.log("CONNECTED!");
 
     ws.on("message", (msg) => {
-        console.log(`Received: ${msg}`);
         messageHandler(ws, msg);
     });
 
