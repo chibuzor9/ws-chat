@@ -2,7 +2,7 @@ import { WebSocketServer } from 'ws';
 import messageHandler from './messageHandler.js';
 import {randomUUID} from "crypto";
 
-const port = Number(process.env.PORT) || 8056;
+const port = Number(process.env.PORT) || 8080;
 const server = new WebSocketServer({ port });
 
 const clients = new Map();
@@ -27,11 +27,11 @@ server.on("connection", (ws) => {
     });
 
     ws.on("close", () => {
-        console.log("DISCONNECTED!");
-        clients.delete(client.id);
+        console.log(`${client.username || "A client"} with ID ${client.id} disconnected.`);
 
         if (client.username) {
             usernameTOID.delete(client.username);
+            clients.delete(client.id);
         }
     });
 

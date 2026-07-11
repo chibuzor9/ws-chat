@@ -3,5 +3,9 @@
   "dependencies": {
     "dotenv": "^17.4.2",
     "ws": "^8.21.0"
+  },
+  "scripts": {
+    "server": "node server/index.js",
+    "client": "node client/index.js"
   }
 }
