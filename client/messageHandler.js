@@ -7,32 +7,6 @@ const errorMessage = (error) => {
     });
 }
 
-const initializeClient = (client, content, context) => {
-    const username = content.username;
-
-    if (context.usernameTOID.has(username)) {
-        client.socket.send(JSON.stringify(
-            errorMessage(`Username ${username} is already taken.`)
-        ));
-        return;
-    }
-
-    if (client.hasInitialized) {
-        client.socket.send(JSON.stringify(
-            errorMessage(`Client with ID ${client.id} has already initialized.`)
-        ));
-        return;
-    }
-
-    client.username = username;
-    client.hasInitialized = true;
-    context.usernameTOID.set(username, client.id);
-
-    context.clients.set(client.id, client);
-
-    console.log(`User ${client.username} initialized with ID: ${client.id}`);
-    
-}
 
 const messageHandler = (client, message, context) => {
     const msg = JSON.parse(message);

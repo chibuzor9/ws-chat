@@ -34,13 +34,13 @@ function initWSEventListeners(ws) {
 
 const wsUri = `ws://127.0.0.1:${process.env.PORT || 8080}`;
 const socket = new WebSocket(wsUri);
-const usernameAnon = "Anonymous";
+const username = "Anonymous";
 
 socket.addEventListener("open", () => {
     const initMsg = new Message({ 
         type: Message.TYPES.INIT, 
         content: {
-            username: usernameAnon
+            username: username
         }
     });
 
