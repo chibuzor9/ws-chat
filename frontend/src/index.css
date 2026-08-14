@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+.scroll-fade {
+  scrollbar-width: auto;
+  scrollbar-color: rgb(82 82 91) transparent;
+}
+
+
+.scroll-fade::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scroll-fade::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-fade::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+
+.scroll-fade:hover::-webkit-scrollbar-thumb {
+  background: rgb(82 82 91); /* zinc-600 */
+}

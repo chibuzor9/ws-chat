@@ -3,11 +3,13 @@ import ChatHeader from "./ChatHeader"
 import MessageList from "./MessageList"
 import MessageComposer from "./MessageComposer"
 
-const ChatView = () => {
+const ChatView = ({username}) => {
     return (
         <>
-            <ChatHeader />
+            <ChatHeader username={username} />
+
             <MessageList />
+
             <MessageComposer />
         </>
 )};

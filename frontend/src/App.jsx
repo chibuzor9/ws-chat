@@ -9,12 +9,12 @@ function App() {
     const handleUsernameSubmit = (submittedUsername = "") => {
         const cleanedUsername = submittedUsername.trim()
 
-        const nextUsername =
+        const actualUsername =
             cleanedUsername ||
             `anonymous-${crypto.randomUUID().slice(0, 8)}`
 
-        setUsername(nextUsername)
-        localStorage.setItem("ws-chat:username", nextUsername)
+        setUsername(actualUsername)
+        localStorage.setItem("ws-chat:username", actualUsername)
     }
 
     return (
@@ -27,7 +27,7 @@ function App() {
                 <Sidebar username={username || "anonymous"}/>
             </aside>
             <main className="min-w-0 flex-1">
-                <ChatView />
+                <ChatView username={username || "anonymous"} />
             </main>
         </div>
     )

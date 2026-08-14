@@ -29,10 +29,9 @@ server.on("connection", (ws) => {
     ws.on("close", () => {
         console.log(`${client.username || "A client"} with ID ${client.id} disconnected.`);
 
-        if (client.username) {
-            usernameTOID.delete(client.username);
-            clients.delete(client.id);
-        }
+        
+        usernameTOID.delete(client.username);
+        clients.delete(client.id);
     });
 
     ws.on("error", (error) => {
