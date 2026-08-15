@@ -1,17 +1,40 @@
-import React from 'react';
-import ChatHeader from "./ChatHeader"
-import MessageList from "./MessageList"
-import MessageComposer from "./MessageComposer"
+import React, {useState} from 'react';
+import ChatHeader from "./ChatHeader";
+import MessageList from "./MessageList";
+import MessageComposer from "./MessageComposer";
+import { getConversation, getKind } from "../shared/TabsData";
+import { demoMessages } from "../shared/DemoMessages";
 
-const ChatView = ({username}) => {
+const ChatView = ({ conversationId }) => {
+    const convo = getConversation(conversationId); // { id: 123, label: "John Doe" }
+    const [allMessages, setAllMessages] = useState(demoMessages);
+    const messages = allMessages[conversationId] ?? [];
+    const isGroup = getKind(conversationId) === "group";
+
+    const handleMessageSubmit = (msg) => {
+        setAllMessages((previous) => {
+            const existingMessages = previous[conversationId] ?? [];
+
+            const newMessage = {
+                id: (existingMessages.at(-1)?.id ?? 0) + 1,
+                sender: "me",
+                content: msg,
+                at: new Date().toISOString()
+            };
+
+            return {...previous, [conversationId]: [...existingMessages, newMessage]}
+        });
+    }
+
     return (
-        <>
-            <ChatHeader username={username} />
+        <div className="flex h-full flex-col relative">
+            <ChatHeader username={convo.label} />
 
-            <MessageList />
+            <MessageList messages={messages} isGroup={isGroup} />
 
-            <MessageComposer />
-        </>
-)};
+            <MessageComposer onSend={handleMessageSubmit}/>
+        </div>
+    )
+};
 
 export default ChatView;

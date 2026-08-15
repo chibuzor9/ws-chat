@@ -5,17 +5,25 @@ import UsernameModal from "./components/UsernameModal"
 
 function App() {
     const [username, setUsername] = useState(() => localStorage.getItem("ws-chat:username") ?? "")
+    const [activeConvo, setActiveConvo] = useState(false);
+    const [conversationId, setConversationId] = useState("");
 
     const handleUsernameSubmit = (submittedUsername = "") => {
         const cleanedUsername = submittedUsername.trim()
 
         const actualUsername =
             cleanedUsername ||
-            `anonymous-${crypto.randomUUID().slice(0, 8)}`
+            `anonymous:${crypto.randomUUID().slice(0, 8)}`
 
         setUsername(actualUsername)
         localStorage.setItem("ws-chat:username", actualUsername)
     }
+    const handleActiveConversation = (userId) => {
+        if (userId) {
+            setActiveConvo(true);
+            setConversationId(`me-${userId}`)
+        }
+    };
 
     return (
         <div className="flex h-dvh w-full overflow-hidden bg-zinc-200">
@@ -24,13 +32,20 @@ function App() {
                     open={!username} 
                     onSubmit={handleUsernameSubmit}
                 />
-                <Sidebar username={username || "anonymous"}/>
+                <Sidebar username={username} connectionStatus={"offline"} onSelectConvo={handleActiveConversation}/>
             </aside>
-            <main className="min-w-0 flex-1">
-                <ChatView username={username || "anonymous"} />
+            <main className={`min-w-0 flex-1`}>
+                { activeConvo ? 
+                    <ChatView conversationId={conversationId}/> 
+                    : 
+                    <div className="flex h-full items-center justify-center px-6">
+                        <p className="text-center text-sm text-zinc-500">
+                            Pick someone from the sidebar to start reading.
+                        </p>
+                    </div>
+                }
             </main>
         </div>
-    )
-}
+)};
 
-export default App
+export default App;

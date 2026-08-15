@@ -1,8 +1,8 @@
 import {React, useState} from 'react';
 import UserIcon from "../shared/UserIcon"
 
-const ChatHeader = ({ username }) => {
-    const [connectionStatus, setConnectionStatus] = useState("online");
+const ChatHeader = ({username}) => {
+    const [connectionStatus, setConnectionStatus] = useState("connecting");
 
     return (
         <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">
