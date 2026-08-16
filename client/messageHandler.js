@@ -1,4 +1,4 @@
-import Message from "../shared/messageClass.js"
+import Message from "../shared/Message.js"
 
 const errorMessage = (error) => {
     return new Message({
@@ -19,22 +19,8 @@ const messageHandler = (client, message, context) => {
         return;
     }
 
-    if (msgType === Message.TYPES.PING) {
-        if(!client.hasInitialized) {
-            client.socket.send(JSON.stringify(
-                errorMessage("Client has not initialized yet.")
-            ));
-            return;
-        }
-
-        client.socket.send(JSON.stringify({ 
-            type: Message.TYPES.PONG,
-            content: "pong"
-        }));
-    } else if (msgType === Message.TYPES.PONG) {
+    if (msgType === Message.TYPES.PONG) {// do something
         console.log("Pong Acknowledged");
-    } else if (msgType === Message.TYPES.INIT) {
-        initializeClient(client, msgContent, context);
     } else if (msgType === Message.TYPES.CHAT) {
         if(!client.hasInitialized) {
             client.socket.send(JSON.stringify(

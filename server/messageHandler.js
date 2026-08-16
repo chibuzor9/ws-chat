@@ -1,4 +1,4 @@
-import Message from "../shared/messageClass.js"
+import Message from "../shared/Message.js";
 
 const errorMessage = (error) => {
     return new Message({
@@ -31,7 +31,6 @@ const initializeClient = (client, content, context) => {
     context.clients.set(client.id, client);
 
     console.log(`User ${client.username} initialized with ID: ${client.id}`);
-    
 }
 
 const messageHandler = (client, message, context) => {
@@ -57,8 +56,6 @@ const messageHandler = (client, message, context) => {
             type: Message.TYPES.PONG,
             content: "pong"
         }));
-    } else if (msgType === Message.TYPES.PONG) {
-        console.log("Pong Acknowledged");
     } else if (msgType === Message.TYPES.INIT) {
         initializeClient(client, msgContent, context);
     } else if (msgType === Message.TYPES.CHAT) {

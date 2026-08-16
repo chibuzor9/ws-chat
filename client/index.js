@@ -1,5 +1,4 @@
-import WebSocket from "ws";
-import Message from "../shared/messageClass.js";
+import Message from "../shared/Message.js";
 import messageHandler from "./messageHandler.js";
 
 function initWSEventListeners(ws) {
@@ -47,4 +46,4 @@ socket.addEventListener("open", () => {
     socket.send(JSON.stringify(initMsg));
 });
 
-initWSEventListeners(socket)
+initWSEventListeners(socket);
