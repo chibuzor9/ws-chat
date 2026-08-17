@@ -3,6 +3,7 @@ import Sidebar from "./components/sidebar/Sidebar";
 import ChatView from "./components/chat/ChatView";
 import UsernameModal from "./components/UsernameModal";
 import { TYPES } from "../../shared/messageTypes.js";
+import messageHandler from "./components/messageHandler.js";
 
 
 function App() {
@@ -64,8 +65,8 @@ function App() {
                     awaitingPong = false;
                     setConnectionStatus("online");
                 }
-
-                // supposed messageHandler for chat etc.
+                
+                messageHandler(socket, event.data);
             });
 
             socket.addEventListener("close", () => {

@@ -1,4 +1,8 @@
 import Message from "../shared/Message.js";
+import clientsModule from './clients.js';
+const { clients, usernameTOID, getSocketByUsername } = clientsModule;
+
+const context = { clients, usernameTOID, getSocketByUsername };
 
 const errorMessage = (error) => {
     return new Message({
@@ -7,7 +11,7 @@ const errorMessage = (error) => {
     });
 }
 
-const initializeClient = (client, content, context) => {
+const initializeClient = (client, content) => {
     const username = content.username;
 
     if (context.usernameTOID.has(username)) {
@@ -33,7 +37,7 @@ const initializeClient = (client, content, context) => {
     console.log(`User ${client.username} initialized with ID: ${client.id}`);
 }
 
-const messageHandler = (client, message, context) => {
+const messageHandler = (client, message) => {
     const msg = JSON.parse(message);
 
     const msgType = msg.type;
@@ -57,7 +61,7 @@ const messageHandler = (client, message, context) => {
             content: "pong"
         }));
     } else if (msgType === Message.TYPES.INIT) {
-        initializeClient(client, msgContent, context);
+        initializeClient(client, msgContent);
     } else if (msgType === Message.TYPES.CHAT) {
         if(!client.hasInitialized) {
             client.socket.send(JSON.stringify(
@@ -66,6 +70,11 @@ const messageHandler = (client, message, context) => {
             return;
         }
         
+    } else if (msgType === Message.TYPES.CLOSE) {
+        console.log(`${client.username || "A client"} with ID ${client.id} disconnected.`);
+
+        context.usernameTOID.delete(client.username);
+        context.clients.delete(client.id);
     } else if (msgType === Message.TYPES.ERROR) {
         console.log(`Error message received: ${msgContent}`);
     } else {

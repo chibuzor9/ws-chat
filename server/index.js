@@ -1,12 +1,10 @@
 import { WebSocketServer } from 'ws';
 import messageHandler from './messageHandler.js';
 import {randomUUID} from "crypto";
+import Message from "../shared/Message.js";
 
 const port = Number(process.env.PORT) || 8080;
 const server = new WebSocketServer({ port });
-
-const clients = new Map();
-const usernameTOID = new Map();
 
 server.on("listening", () => {
     console.log(`Server listening on ws://127.0.0.1:${port}`);
@@ -20,18 +18,17 @@ server.on("connection", (ws) => {
         hasInitialized: false
     };
 
-    clients.set(client.id, client);
-
     ws.on("message", (msg) => {
-        messageHandler(client, msg, { clients, usernameTOID });
+        messageHandler(client, msg);
     });
 
     ws.on("close", () => {
-        console.log(`${client.username || "A client"} with ID ${client.id} disconnected.`);
+        const msg = new Message({ 
+            type: Message.TYPES.CLOSE, 
+            content: "Client wants to disconnect" 
+        });
 
-        
-        usernameTOID.delete(client.username);
-        clients.delete(client.id);
+        messageHandler(client, JSON.stringify(msg));
     });
 
     ws.on("error", (error) => {

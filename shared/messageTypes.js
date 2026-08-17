@@ -3,5 +3,6 @@ export const TYPES = Object.freeze({
         CHAT: "chat",
         PING: "ping",
         PONG: "pong",
+        CLOSE: "close",
         ERROR: "error"
 });
