@@ -1,8 +1,8 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import Sidebar from "./components/sidebar/Sidebar";
 import ChatView from "./components/chat/ChatView";
 import UsernameModal from "./components/UsernameModal";
-import { TYPES } from "../../shared/messageTypes.js";
+import Message from "../../shared/Message.js";
 import messageHandler from "./components/messageHandler.js";
 
 
@@ -11,6 +11,20 @@ function App() {
     const [activeConvo, setActiveConvo] = useState(false);
     const [conversationId, setConversationId] = useState("");
     const [connectionStatus, setConnectionStatus] = useState("offline");
+    const socket = useRef(null);
+
+    const handleUserLogout = () => {
+        const close_msg = new Message({
+            type: Message.TYPES.CLOSE,
+            content: "Logging Out"
+        })
+
+        messageHandler(socket.current, JSON.stringify(close_msg));
+        setUsername("");
+        localStorage.removeItem("ws-chat:username");
+        setActiveConvo(false);
+        setConversationId("");
+    }
 
     const handleUsernameSubmit = (submittedUsername = "") => {
         const cleanedUsername = submittedUsername.trim()
@@ -34,48 +48,55 @@ function App() {
         // Effect Code
         if (!username) return; // base case for no username
 
-        let socket, pingInterval, retryTimer;
+        let ws, pingInterval, retryTimer;
         let awaitingPong = false;
+        let disposed = false
 
         const connect = () => {
             setConnectionStatus("connecting");
             
             const wsUri = `ws://127.0.0.1:${8080}`; // process.env.PORT ||
-            socket = new WebSocket(wsUri);
+            ws = new WebSocket(wsUri);
+            socket.current = ws
 
-            socket.addEventListener("open", () => {
-                socket.send(JSON.stringify({ type: TYPES.INIT, content: { username } }));
-                socket.send(JSON.stringify({ type: TYPES.PING, content: "ping" }));
+            ws.addEventListener("open", () => {
+                const pingMsg = new Message({ type: Message.TYPES.PING, content: "ping" })
+
+                ws.send(JSON.stringify({ type: Message.TYPES.INIT, content: { username } }));
+                ws.send(JSON.stringify(pingMsg));
                 awaitingPong = true;
 
                 pingInterval = setInterval(() => {
                     if (awaitingPong) { 
-                        socket.close(); return; 
+                        ws.close(); return; 
                     }   // never answered → dead
 
                     awaitingPong = true;
-                    socket.send(JSON.stringify({ type: TYPES.PING, content: "ping" }));
+                    ws.send(JSON.stringify(pingMsg));
                 }, 30000);
             });
 
-            socket.addEventListener("message", (event) => {
+            ws.addEventListener("message", (event) => {
                 const msg = JSON.parse(event.data);
 
-                if (msg.type === TYPES.PONG) {
+                if (msg.type === Message.TYPES.PONG) {
                     awaitingPong = false;
                     setConnectionStatus("online");
                 }
-                
-                messageHandler(socket, event.data);
+
+                messageHandler(ws, event.data);
             });
 
-            socket.addEventListener("close", () => {
+            ws.addEventListener("close", () => {
                 clearInterval(pingInterval);
                 setConnectionStatus("offline");
-                retryTimer = setTimeout(connect, 3000);   // next connect() → "connecting"
+
+                if (!disposed) {
+                    retryTimer = setTimeout(connect, 3000);   // next connect() → "connecting"
+                } 
             });
 
-            socket.addEventListener("error", () => socket.close());
+            ws.addEventListener("error", () => ws.close());
         };
 
         connect();
@@ -84,7 +105,8 @@ function App() {
         return () => {
             clearInterval(pingInterval);
             clearTimeout(retryTimer);
-            socket?.close();
+            disposed = true;
+            ws.close();
         };
     }, [username]); // dependencies
 
@@ -100,6 +122,7 @@ function App() {
                     username={username} 
                     connectionStatus={connectionStatus} 
                     onSelectConvo={handleActiveConversation}
+                    onLogOut={handleUserLogout}
                 />
             </aside>
             <main className={`min-w-0 flex-1`}>

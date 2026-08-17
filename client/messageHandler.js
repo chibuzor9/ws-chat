@@ -8,7 +8,7 @@ const errorMessage = (error) => {
 }
 
 
-const messageHandler = (client, message, context) => {
+const messageHandler = (client, message) => {
     const msg = JSON.parse(message);
 
     const msgType = msg.type;
@@ -22,13 +22,7 @@ const messageHandler = (client, message, context) => {
     if (msgType === Message.TYPES.PONG) {// do something
         console.log("Pong Acknowledged");
     } else if (msgType === Message.TYPES.CHAT) {
-        if(!client.hasInitialized) {
-            client.socket.send(JSON.stringify(
-                errorMessage("Client has not initialized yet.")
-            ));
-            return;
-        }
-        
+        // do something with chat message        
     } else if (msgType === Message.TYPES.ERROR) {
         console.log(`Error message received: ${msgContent}`);
     } else {

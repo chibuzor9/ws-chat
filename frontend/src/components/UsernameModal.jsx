@@ -11,11 +11,15 @@ const UsernameModal = ({ open, onSubmit }) => {
                         Provide your username: 
                     </p>
 
-                    <input className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/40" placeholder="johndoe1" onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                        onSubmit(e.target.value)
-                        }
-                    }} />
+                    <input 
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/40" 
+                        placeholder="johndoe1" 
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                onSubmit(e.target.value)
+                            };
+                        }} 
+                    />
                 </div>
             </div>
         )
