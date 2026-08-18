@@ -27,11 +27,11 @@ function App() {
     }
 
     const handleUsernameSubmit = (submittedUsername = "") => {
-        const cleanedUsername = submittedUsername.trim()
+        const cleanedUsername = submittedUsername.trim().slice(0, 16);
 
         const actualUsername =
             cleanedUsername ||
-            `anonymous:${crypto.randomUUID().slice(0, 8)}`
+            `anonymous:${crypto.randomUUID().slice(0, 6)}`
 
         setUsername(actualUsername)
         localStorage.setItem("ws-chat:username", actualUsername)
@@ -48,7 +48,7 @@ function App() {
         // Effect Code
         if (!username) return; // base case for no username
 
-        let ws, pingInterval, retryTimer;
+        let ws, pingInterval, retryTimer, attempts = 0;
         let awaitingPong = false;
         let disposed = false
 
@@ -77,14 +77,16 @@ function App() {
             });
 
             ws.addEventListener("message", (event) => {
-                const msg = JSON.parse(event.data);
-
-                if (msg.type === Message.TYPES.PONG) {
-                    awaitingPong = false;
-                    setConnectionStatus("online");
+                const result = messageHandler(ws, event.data);
+                
+                if (result && result.awaitingPong !== undefined) {
+                    awaitingPong = result.awaitingPong;
+                    attempts = 0;
                 }
 
-                messageHandler(ws, event.data);
+                if (result && result.status) {
+                    setConnectionStatus(result.status);
+                }
             });
 
             ws.addEventListener("close", () => {
@@ -92,7 +94,14 @@ function App() {
                 setConnectionStatus("offline");
 
                 if (!disposed) {
-                    retryTimer = setTimeout(connect, 3000);   // next connect() → "connecting"
+                    const delay = Math.min(1000 * 2 ** attempts, 30000); // exponential backoff with max delay
+                    attempts++;
+
+                    if (attempts < 10) {
+                        retryTimer = setTimeout(connect, delay);   // next connect() → "connecting"
+                    } else {
+                        // manual reconnect after 30s delay
+                    }
                 } 
             });
 
@@ -101,13 +110,14 @@ function App() {
 
         connect();
 
-        // cleanup 
-        return () => {
+        const cleanup = () => {
             clearInterval(pingInterval);
             clearTimeout(retryTimer);
             disposed = true;
             ws.close();
         };
+
+        return cleanup;
     }, [username]); // dependencies
 
 

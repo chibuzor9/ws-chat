@@ -8,7 +8,7 @@ const Profile = ({ username, connectionStatus, onLogOut}) => {
         <div className="flex h-12 items-center gap-3 border-t border-zinc-700 p-4">
             <UserIcon status={connectionStatus} />
             <p className="flex-1">{username}</p>
-            <button className="flex ml-auto hover:cursor-pointer" onClick={onLogOut}>
+            <button className="flex hover:cursor-pointer" onClick={onLogOut}>
                 <LogOut />
             </button>
         </div>
