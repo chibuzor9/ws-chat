@@ -1,9 +1,12 @@
+// eslint-disable-next-line no-unused-vars
 import React, {useState, useEffect, useRef} from 'react';
 import Sidebar from "./components/sidebar/Sidebar";
 import ChatView from "./components/chat/ChatView";
-import UsernameModal from "./components/UsernameModal";
 import Message from "../../shared/Message.js";
 import messageHandler from "./components/messageHandler.js";
+import Modal from "../src/components/modal/Modal.jsx";
+import UsernameModal from './components/modal/UsernameModal';
+import RetryModal from './components/modal/RetryModal.jsx';
 
 
 function App() {
@@ -12,6 +15,7 @@ function App() {
     const [conversationId, setConversationId] = useState("");
     const [connectionStatus, setConnectionStatus] = useState("offline");
     const socket = useRef(null);
+    const [retry, setRetry] = useState(0);
 
     const handleUserLogout = () => {
         const close_msg = new Message({
@@ -24,6 +28,10 @@ function App() {
         localStorage.removeItem("ws-chat:username");
         setActiveConvo(false);
         setConversationId("");
+    }
+
+    const handleRetryDependency = () => {
+        setRetry((prev) => prev + 1);
     }
 
     const handleUsernameSubmit = (submittedUsername = "") => {
@@ -100,7 +108,7 @@ function App() {
                     if (attempts < 10) {
                         retryTimer = setTimeout(connect, delay);   // next connect() → "connecting"
                     } else {
-                        // manual reconnect after 30s delay
+                        setConnectionStatus("failed");
                     }
                 } 
             });
@@ -118,16 +126,18 @@ function App() {
         };
 
         return cleanup;
-    }, [username]); // dependencies
+    }, [username, retry]); // dependencies
 
 
     return (
         <div className="flex h-dvh w-full overflow-hidden bg-zinc-200">
+            <Modal open={!username}>
+                <UsernameModal onSubmit={handleUsernameSubmit}/>
+            </Modal>
+            <Modal open={connectionStatus === "failed"}>
+                <RetryModal onRetry={handleRetryDependency}/>
+            </Modal>
             <aside className="w-64 shrink-0 border-r border-zinc-700">
-                <UsernameModal 
-                    open={!username} 
-                    onSubmit={handleUsernameSubmit}
-                />
                 <Sidebar 
                     username={username} 
                     connectionStatus={connectionStatus} 

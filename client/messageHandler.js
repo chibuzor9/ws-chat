@@ -1,3 +1,4 @@
+// CLI client message handler
 import Message from "../shared/Message.js"
 
 const errorMessage = (error) => {
@@ -6,7 +7,6 @@ const errorMessage = (error) => {
         content: error
     });
 }
-
 
 const messageHandler = (client, message) => {
     const msg = JSON.parse(message);
@@ -23,10 +23,12 @@ const messageHandler = (client, message) => {
         console.log("Pong Acknowledged");
     } else if (msgType === Message.TYPES.CHAT) {
         // do something with chat message        
+    } else if (msgType === Message.TYPES.CLOSE) {
+        client.close();      
     } else if (msgType === Message.TYPES.ERROR) {
         console.log(`Error message received: ${msgContent}`);
     } else {
-        console.log(`Undefined message type use: ${msgType}`);
+        console.log(`Undefined message type used: ${msgType}`);
     }
 };
 

@@ -27,7 +27,7 @@ const ChatView = ({ conversationId }) => {
     }
 
     return (
-        <div className="flex h-full flex-col relative">
+        <div className="flex h-full flex-col relative min-w-100">
             <ChatHeader username={convo.label} />
 
             <MessageList messages={messages} isGroup={isGroup} />
