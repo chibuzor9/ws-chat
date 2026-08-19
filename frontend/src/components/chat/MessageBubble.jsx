@@ -3,7 +3,7 @@ import { getSenderName } from "../shared/TabsData"
 
 const MessageBubble = ({ content, sender, time, isGroup }) => {
     return (
-        <div className={`bg-zinc-300 border border-zinc-700 p-2 rounded-2xl ${sender === "me" ? "self-end rounded-br-md" : "self-start rounded-bl-md"}`}>
+        <div className={`bg-zinc-300 border border-zinc-700 p-2 rounded-2xl max-w-140 ${sender === "me" ? "self-end rounded-br-md" : "self-start rounded-bl-md"}`}>
             {isGroup && (
                 <span className="block text-xs font-medium text-zinc-600">
                     {getSenderName(sender)}

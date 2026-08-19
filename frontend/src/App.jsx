@@ -56,9 +56,8 @@ function App() {
         // Effect Code
         if (!username) return; // base case for no username
 
-        let ws, pingInterval, retryTimer, attempts = 0;
-        let awaitingPong = false;
-        let disposed = false
+        let ws, pingInterval, retryTimer;
+        let attempts = 0, awaitingPong = false, disposed = false;
 
         const connect = () => {
             setConnectionStatus("connecting");
@@ -108,7 +107,7 @@ function App() {
                     if (attempts < 10) {
                         retryTimer = setTimeout(connect, delay);   // next connect() → "connecting"
                     } else {
-                        setConnectionStatus("failed");
+                        setConnectionStatus("reconnect");
                     }
                 } 
             });
@@ -134,7 +133,7 @@ function App() {
             <Modal open={!username}>
                 <UsernameModal onSubmit={handleUsernameSubmit}/>
             </Modal>
-            <Modal open={connectionStatus === "failed"}>
+            <Modal open={connectionStatus === "reconnect"}>
                 <RetryModal onRetry={handleRetryDependency}/>
             </Modal>
             <aside className="w-64 shrink-0 border-r border-zinc-700">

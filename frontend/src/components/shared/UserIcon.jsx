@@ -6,6 +6,7 @@ const UserIcon = ({status : connectionStatus}) => {
         online: "bg-emerald-400",
         connecting: "bg-amber-400",
         offline: "bg-red-400",
+        reconnect: "bg-red-400",
     }
     
     return (
