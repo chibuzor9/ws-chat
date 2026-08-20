@@ -2,11 +2,17 @@
   "type": "module",
   "dependencies": {
     "dotenv": "^17.4.2",
+    "drizzle-orm": "^1.0.0-rc.4",
     "pg": "^8.23.0",
     "ws": "^8.21.0"
   },
   "scripts": {
     "server": "node server/index.js",
     "client": "node client/index.js"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^1.0.0-rc.4",
+    "tsx": "^4.23.12"
   }
 }

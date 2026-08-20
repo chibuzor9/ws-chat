@@ -3,6 +3,9 @@ import messageHandler from './messageHandler.js';
 import {randomUUID} from "crypto";
 import Message from "../shared/Message.js";
 
+// npx drizzle-kit push --> For applying changes to the database
+
+
 const port = Number(process.env.PORT) || 8080;
 const server = new WebSocketServer({ port });
 

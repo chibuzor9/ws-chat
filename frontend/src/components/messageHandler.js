@@ -1,12 +1,14 @@
 //clients messageHandler
 import Message from "../../../shared/Message.js";
 
+/*
 const errorMessage = (error) => {
     return new Message({
         type: Message.TYPES.ERROR,
         content: error
     });
 }
+*/
 
 const messageHandler = (client, message) => {
     const msg = JSON.parse(message);

@@ -1,5 +1,5 @@
-// eslint-disable-next-line no-unused-vars
-import React, {useState, useEffect, useRef} from 'react';
+import 'dotenv/config';
+import {useState, useEffect, useRef} from 'react';
 import Sidebar from "./components/sidebar/Sidebar";
 import ChatView from "./components/chat/ChatView";
 import Message from "../../shared/Message.js";
@@ -52,6 +52,19 @@ function App() {
         }
     };
 
+    const handleChatSubmit = (text) => {
+        const chatMsg = new Message({
+            type: Message.TYPES.CHAT, 
+            content: {
+                sender: username,
+                receiver: conversationId,
+                text: text
+            }
+        });
+
+        socket.send(JSON.stringify(chatMsg));
+    };
+
     useEffect(() => {
         // Effect Code
         if (!username) return; // base case for no username
@@ -62,7 +75,7 @@ function App() {
         const connect = () => {
             setConnectionStatus("connecting");
             
-            const wsUri = `ws://127.0.0.1:${8080}`; // process.env.PORT ||
+            const wsUri = `ws://127.0.0.1:${process.env.PORT || 8080}`; // process.env.PORT ||
             ws = new WebSocket(wsUri);
             socket.current = ws
 
@@ -146,7 +159,7 @@ function App() {
             </aside>
             <main className={`min-w-0 flex-1`}>
                 { activeConvo ? 
-                    <ChatView conversationId={conversationId}/> 
+                    <ChatView conversationId={conversationId} onSubmit={handleChatSubmit}/> 
                     : 
                     <div className="flex h-full items-center justify-center px-6">
                         <p className="text-center text-sm text-zinc-500">
