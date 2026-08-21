@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import {useState, useEffect, useRef} from 'react';
 import Sidebar from "./components/sidebar/Sidebar";
 import ChatView from "./components/chat/ChatView";
@@ -35,7 +34,7 @@ function App() {
     }
 
     const handleUsernameSubmit = (submittedUsername = "") => {
-        const cleanedUsername = submittedUsername.trim().slice(0, 16);
+        const cleanedUsername = submittedUsername.toLowerCase().trim().slice(0, 16);
 
         const actualUsername =
             cleanedUsername ||
@@ -75,7 +74,7 @@ function App() {
         const connect = () => {
             setConnectionStatus("connecting");
             
-            const wsUri = `ws://127.0.0.1:${process.env.PORT || 8080}`; // process.env.PORT ||
+            const wsUri = `ws://127.0.0.1:${import.meta.env.VITE_WS_PORT || 8080}`;
             ws = new WebSocket(wsUri);
             socket.current = ws
 

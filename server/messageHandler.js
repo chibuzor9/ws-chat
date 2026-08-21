@@ -38,7 +38,7 @@ const initializeClient = (client, content) => {
 }
 
 const messageHandler = (client, message) => {
-    const msg = JSON.parse(message);
+    const msg = typeof message === "string" ? JSON.parse(message) : message;
 
     const msgType = msg.type;
     const msgContent = msg.content;
