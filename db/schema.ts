@@ -49,7 +49,7 @@ export const groupMembers = pgTable(
 export const messages = pgTable(
   "messages",
   {
-    id: uuid("id").primaryKey(),
+    id: uuid("id").defaultRandom().primaryKey(),
     kind: messageKind("kind").notNull(),
     senderId: uuid("sender_id").notNull().references(() => users.id),
     receiverUserId: uuid("receiver_user_id").references(() => users.id),

@@ -31,6 +31,10 @@ const messageHandler = (client, message) => {
     } else if (msgType === Message.TYPES.CHAT) {
         // do something with chat message        
     } else if (msgType === Message.TYPES.CLOSE) {
+        if (msg.content.code === 3000) {
+            return { disposed: true };
+        }
+
         client.close();      
     } else if (msgType === Message.TYPES.ERROR) {
         console.log(`Error message received: ${msgContent}`);

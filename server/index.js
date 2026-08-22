@@ -17,21 +17,26 @@ server.on("connection", (ws) => {
     const client = {
         id: randomUUID(),
         socket: ws,
-        username: null,
-        hasInitialized: false
+        username: null
     };
+
+    const initTimeout = setTimeout(() => {
+        if (!client.username) {
+            ws.close(1000, "Client did not initialize within the required time frame.");
+        }
+    }, 10000);
 
     ws.on("message", (msg) => {
         messageHandler(client, msg);
     });
 
-    ws.on("close", () => {
+    ws.on("close", async () => {
         const msg = new Message({ 
             type: Message.TYPES.CLOSE, 
             content: "Client wants to disconnect" 
         });
 
-        messageHandler(client, JSON.stringify(msg));
+        await messageHandler(client, JSON.stringify(msg));
     });
 
     ws.on("error", (error) => {

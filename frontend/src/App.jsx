@@ -60,8 +60,10 @@ function App() {
                 text: text
             }
         });
-
-        socket.send(JSON.stringify(chatMsg));
+        
+        if (socket.current && socket.current.readyState === WebSocket.OPEN) {
+            socket.current.send(JSON.stringify(chatMsg));
+        }
     };
 
     useEffect(() => {
@@ -105,6 +107,11 @@ function App() {
 
                 if (result && result.status) {
                     setConnectionStatus(result.status);
+                }
+
+                if (result && result.disposed) {
+                    disposed = true;
+                    ws.close();
                 }
             });
 

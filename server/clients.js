@@ -4,8 +4,12 @@ const usernameTOID = new Map();  // username -> clientId
 
 const getSocketByUsername = (username) => {
     const clientId = usernameTOID.get(username);
-    if (!clientId) return null;
-    return clients.get(clientId)?.socket;
+
+    if (clientId) {
+        return clients.get(clientId).socket;  
+    }
+
+    return null;
 };
 
 export default { clients, usernameTOID, getSocketByUsername };
