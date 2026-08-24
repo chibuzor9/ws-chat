@@ -17,12 +17,7 @@ function App() {
     const [retry, setRetry] = useState(0);
 
     const handleUserLogout = () => {
-        const close_msg = new Message({
-            type: Message.TYPES.CLOSE,
-            content: "Logging Out"
-        })
-
-        messageHandler(socket.current, JSON.stringify(close_msg));
+        socket.current?.close(1000, "User logged out");
         setUsername("");
         localStorage.removeItem("ws-chat:username");
         setActiveConvo(false);
@@ -55,6 +50,7 @@ function App() {
         const chatMsg = new Message({
             type: Message.TYPES.CHAT, 
             content: {
+                kind: "dm",
                 sender: username,
                 receiver: conversationId,
                 text: text
@@ -67,7 +63,6 @@ function App() {
     };
 
     useEffect(() => {
-        // Effect Code
         if (!username) return; // base case for no username
 
         let ws, pingInterval, retryTimer;
@@ -83,18 +78,26 @@ function App() {
             ws.addEventListener("open", () => {
                 const pingMsg = new Message({ type: Message.TYPES.PING, content: "ping" })
 
-                ws.send(JSON.stringify({ type: Message.TYPES.INIT, content: { username } }));
-                ws.send(JSON.stringify(pingMsg));
-                awaitingPong = true;
+                const initAck = new Promise((resolve, reject) => {
+                    (() => {
+                        ws.send(JSON.stringify({ 
+                            type: Message.TYPES.INIT, 
+                            content: { username } 
+                        }));
+                        resolve();
+                    })();
+                });
 
-                pingInterval = setInterval(() => {
-                    if (awaitingPong) { 
-                        ws.close(); return; 
-                    }   // never answered → dead
+                initAck.then(() => {
+                    pingInterval = setInterval(() => {
+                        if (awaitingPong) { 
+                            ws.close(); return; 
+                        }   // never answered → dead
 
-                    awaitingPong = true;
-                    ws.send(JSON.stringify(pingMsg));
-                }, 30000);
+                        ws.send(JSON.stringify(pingMsg));
+                        awaitingPong = true;
+                    }, 30000);
+                });
             });
 
             ws.addEventListener("message", (event) => {
@@ -108,19 +111,20 @@ function App() {
                 if (result && result.status) {
                     setConnectionStatus(result.status);
                 }
-
-                if (result && result.disposed) {
-                    disposed = true;
-                    ws.close();
-                }
             });
 
-            ws.addEventListener("close", () => {
+            ws.addEventListener("close", (event) => {
                 clearInterval(pingInterval);
                 setConnectionStatus("offline");
+                
+                if (event.code === 3000) {
+                    disposed = true;
+                    setConnectionStatus("reconnect");
+                    console.log("Connection closed due to another session taking over the username.");
+                }
 
                 if (!disposed) {
-                    const delay = Math.min(1000 * 2 ** attempts, 30000); // exponential backoff with max delay
+                    const delay = Math.min(1000 * 2 ** attempts, 30000); // exponential backoff
                     attempts++;
 
                     if (attempts < 10) {

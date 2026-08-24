@@ -9,10 +9,12 @@ const messageKind = {
 
 const getUserByUsername = async (username: string) => {
     const [user] = await db
-        .select()
+        .select({
+            id: users.id,
+            username: users.username
+        })
         .from(users)
-        .where(eq(users.username, username))
-        .limit(1);
+        .where(eq(users.username, username));
 
     return user ?? null;
 }
@@ -84,6 +86,17 @@ const getUserLabels = async () => {
     return rows;
 }
 
+const getGroupMembers = async (groupId: string) => {
+    const rows = await db
+        .select({
+            userId: groupMembers.userId
+        })
+        .from(groupMembers)
+        .where(eq(groupMembers.groupId, groupId));
+
+    return rows;
+}
+
 export default {
     getUserByUsername,
     appendUsername,
@@ -91,5 +104,6 @@ export default {
     insertDirectMessage,
     insertGroupMessage,
     getGroupLabels,
-    getUserLabels
+    getUserLabels,
+    getGroupMembers
 }

@@ -4,8 +4,6 @@ import messageHandler from './messageHandler.js';
 import {randomUUID} from "crypto";
 import Message from "../shared/Message.js";
 
-// npx drizzle-kit push --> For applying changes to the database
-
 const port = Number(process.env.PORT) || 8080;
 const server = new WebSocketServer({ port });
 
@@ -26,17 +24,16 @@ server.on("connection", (ws) => {
         }
     }, 10000);
 
-    ws.on("message", (msg) => {
-        messageHandler(client, msg);
+    ws.on("message", async (msg) => {
+        if (JSON.parse(msg).type == Message.TYPES.INIT) {
+            clearTimeout(initTimeout);
+        }
+
+        await messageHandler(client, msg);
     });
 
     ws.on("close", async () => {
-        const msg = new Message({ 
-            type: Message.TYPES.CLOSE, 
-            content: "Client wants to disconnect" 
-        });
-
-        await messageHandler(client, JSON.stringify(msg));
+        clearTimeout(initTimeout);
     });
 
     ws.on("error", (error) => {
