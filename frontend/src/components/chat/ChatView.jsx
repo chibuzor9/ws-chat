@@ -6,7 +6,7 @@ import { getConversation, getKind } from "../shared/TabsData";
 import { demoMessages } from "../shared/DemoMessages";
 
 const ChatView = ({ conversationId }) => {
-    const convo = getConversation(conversationId); // { id: 123, label: "John Doe" }
+    const convo = getConversation(conversationId); // convoId reaches here
     const [allMessages, setAllMessages] = useState(demoMessages);
     const messages = allMessages[conversationId] ?? [];
     const isGroup = getKind(conversationId) === "group";

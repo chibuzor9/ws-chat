@@ -29,24 +29,34 @@ const initializeClient = async (client, content) => {
         const prevSocket = getSocketByUsername(username);
 
         console.log(`User ${username} is being taken over by another session. Closing previous connection.`);
-        
+
         prevSocket.close(3000, "Another session has taken over this username.");
     }
     
     const userDbStatus = await getUserByUsername(username);
 
-    if (userDbStatus) {
-        client.id = userDbStatus.id;
-        client.username = userDbStatus.username;
+    if (!userDbStatus) {
+        const user = await appendUsername(username);
+        client.id = user.id;
     } else {
-        await appendUsername(username);
+        client.id = userDbStatus.id;
     }
 
+    client.username = username;    
     context.usernameTOID.set(client.username, client.id);
     context.clients.set(client.id, client);
+
+    const [users, groups] = await Promise.all([
+        getUserLabels(), 
+        getGroupLabels()
+    ]);
+
     client.socket.send(JSON.stringify({ 
-            type: Message.TYPES.PONG,
-            content: "Initialization successful. Pong response sent."
+        type: Message.TYPES.INIT_ACK,
+        content: {
+            users,
+            groups
+        }
     }));
 
     console.log(`User ${client.username} initialized with ID: ${client.id}`);
@@ -87,12 +97,15 @@ const messageHandler = async (client, message) => {
             return;
         }
         
-    } else if (msgType === Message.TYPES.CLOSE) {
-        console.log(`${client.username || "A client"} with ID ${client.id} disconnected.`);
-
-        await handleClientDisconnection(client.username);
-        context.usernameTOID.delete(client.username);
-        context.clients.delete(client.id);
+        if (msgContent.kind === "dm") {
+            await insertDirectMessage(
+                context.usernameTOID.get(msgContent.sender), 
+                msgContent.receiver, 
+                msgContent.message
+            );            
+        } else {
+            // Handle group message logic here
+        }
     } else if (msgType === Message.TYPES.ERROR) {
         console.log(`Error message received: ${msgContent}`);
     } else {

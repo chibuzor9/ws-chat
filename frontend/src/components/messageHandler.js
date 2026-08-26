@@ -20,8 +20,13 @@ const messageHandler = (client, message) => {
         console.error(`Invalid message type: ${msg.type}`);
         return;
     }
-
-    if (msgType === Message.TYPES.PONG) {// do something
+    if (msgType === Message.TYPES.INIT_ACK) {
+        return {
+            status: "online",
+            users: msgContent.users,
+            groups: msgContent.groups
+        };
+    } else if (msgType === Message.TYPES.PONG) {// do something
         console.log("Pong Acknowledged");
 
         return {

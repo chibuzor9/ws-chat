@@ -13,6 +13,7 @@ function App() {
     const [activeConvo, setActiveConvo] = useState(false);
     const [conversationId, setConversationId] = useState("");
     const [connectionStatus, setConnectionStatus] = useState("offline");
+    const [tabsData, setTabsData] = useState({});
     const socket = useRef(null);
     const [retry, setRetry] = useState(0);
 
@@ -42,7 +43,7 @@ function App() {
     const handleActiveConversation = (userId) => {
         if (userId) {
             setActiveConvo(true);
-            setConversationId(`me-${userId}`)
+            setConversationId(`${userId}`)
         }
     };
 
@@ -78,7 +79,7 @@ function App() {
             ws.addEventListener("open", () => {
                 const pingMsg = new Message({ type: Message.TYPES.PING, content: "ping" })
 
-                const initAck = new Promise((resolve, reject) => {
+                const initAck = new Promise((resolve) => {
                     (() => {
                         ws.send(JSON.stringify({ 
                             type: Message.TYPES.INIT, 
@@ -110,6 +111,14 @@ function App() {
 
                 if (result && result.status) {
                     setConnectionStatus(result.status);
+                }
+
+                if (result && result.users) {
+                    setTabsData((prev) => ({
+                        ...prev,
+                        users: result.users,
+                        groups: result.groups
+                    }));
                 }
             });
 
@@ -165,6 +174,7 @@ function App() {
                     connectionStatus={connectionStatus} 
                     onSelectConvo={handleActiveConversation}
                     onLogOut={handleUserLogout}
+                    tabsData={tabsData}
                 />
             </aside>
             <main className={`min-w-0 flex-1`}>
