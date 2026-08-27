@@ -14,8 +14,11 @@ function App() {
     const [conversationId, setConversationId] = useState("");
     const [connectionStatus, setConnectionStatus] = useState("offline");
     const [tabsData, setTabsData] = useState({});
-    const socket = useRef(null);
+    const [messages, setMessages] = useState({});
     const [retry, setRetry] = useState(0);
+    const socket = useRef(null);
+    const users = new Map(tabsData?.users?.map((user) => [user.id, user]));
+    const [senderId, setSenderId] = useState("");
 
     const handleUserLogout = () => {
         socket.current?.close(1000, "User logged out");
@@ -41,10 +44,20 @@ function App() {
     }
 
     const handleActiveConversation = (userId) => {
+        const fetchMsg = new Message({
+            type: Message.TYPES.FETCH_MESSAGES,
+            content: {
+                userId: username,
+                conversationId: userId,
+            }
+        });
+
         if (userId) {
             setActiveConvo(true);
             setConversationId(`${userId}`)
         }
+
+        socket.current?.send(JSON.stringify(fetchMsg));
     };
 
     const handleChatSubmit = (text) => {
@@ -54,7 +67,7 @@ function App() {
                 kind: "dm",
                 sender: username,
                 receiver: conversationId,
-                text: text
+                message: text
             }
         });
         
@@ -103,10 +116,16 @@ function App() {
 
             ws.addEventListener("message", (event) => {
                 const result = messageHandler(ws, event.data);
+
+                if (!result) return;
                 
                 if (result && result.awaitingPong !== undefined) {
                     awaitingPong = result.awaitingPong;
                     attempts = 0;
+                }
+
+                if (result && result.senderId) {
+                    setSenderId(result.senderId);
                 }
 
                 if (result && result.status) {
@@ -119,6 +138,13 @@ function App() {
                         users: result.users,
                         groups: result.groups
                     }));
+                }
+
+                if (result && result.messages) { 
+                    setMessages((prev) => ({
+                        ...prev,
+                        [result.conversationId]: result.messages
+                    }));                                      
                 }
             });
 
@@ -179,7 +205,12 @@ function App() {
             </aside>
             <main className={`min-w-0 flex-1`}>
                 { activeConvo ? 
-                    <ChatView conversationId={conversationId} onSubmit={handleChatSubmit}/> 
+                    <ChatView 
+                        messages={messages[conversationId] || []}
+                        onSubmit={handleChatSubmit}
+                        recipientData={users.get(conversationId)}
+                        senderId={senderId}
+                    /> 
                     : 
                     <div className="flex h-full items-center justify-center px-6">
                         <p className="text-center text-sm text-zinc-500">

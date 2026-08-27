@@ -1,38 +1,31 @@
-import React, {useState} from 'react';
+import React from 'react';
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import MessageComposer from "./MessageComposer";
-import { getConversation, getKind } from "../shared/TabsData";
-import { demoMessages } from "../shared/DemoMessages";
 
-const ChatView = ({ conversationId }) => {
-    const convo = getConversation(conversationId); // convoId reaches here
-    const [allMessages, setAllMessages] = useState(demoMessages);
-    const messages = allMessages[conversationId] ?? [];
-    const isGroup = getKind(conversationId) === "group";
-
-    const handleMessageSubmit = (msg) => {
-        setAllMessages((previous) => {
-            const existingMessages = previous[conversationId] ?? [];
-
-            const newMessage = {
-                id: (existingMessages.at(-1)?.id ?? 0) + 1,
-                sender: "me",
-                content: msg,
-                at: new Date().toISOString()
-            };
-
-            return {...previous, [conversationId]: [...existingMessages, newMessage]}
-        });
-    }
-
+const ChatView = ({ messages, onSubmit, recipientData, senderId }) => {
     return (
         <div className="flex h-full flex-col relative min-w-100">
-            <ChatHeader username={convo.label} />
+            <ChatHeader 
+                username={recipientData?.username || "Unknown User"} 
+                status={"offline"} // fixme: this should be the recipient's status
+                // but we don't have that data yet. 
+                // We can get it from the server when we fetch the recipient's data.
+            />
 
-            <MessageList messages={messages} isGroup={isGroup} />
+            { messages.length ? (
+                <MessageList 
+                    messages={messages} 
+                    isGroup={messages?.[0]?.kind === "gc"} 
+                    senderId={senderId}
+                />
+            ) : (
+                <div className="flex h-full items-center justify-center text-zinc-500">
+                    No messages yet. Start the conversation!
+                </div>
+            )}
 
-            <MessageComposer onSend={handleMessageSubmit}/>
+            <MessageComposer onSend={onSubmit}/>
         </div>
     )
 };

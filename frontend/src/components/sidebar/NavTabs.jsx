@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { tabs } from '../shared/TabsData';
 import { ChevronRight } from 'lucide-react';
 
-const NavTabs = ({ id, onSubmit }) => {
-    const tab = tabs[id-1]
+const NavTabs = ({ label, items = [], onSubmit }) => {
     const [open, setOpen] = useState(true);
 
     return (
@@ -13,20 +11,20 @@ const NavTabs = ({ id, onSubmit }) => {
                 onClick={() => setOpen(!open)}
                 aria-expanded={open}
             >
-                {tab.label}
+                {label}
                 <ChevronRight className={`ml-auto size-4 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
             </button>
 
             <div className={`grid transition-all duration-200 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                 <div className="overflow-hidden">
                     <div className={`flex flex-col gap-1 pl-6 transition-[margin] duration-200 ${open ? 'mt-2' : 'mt-0'}`}>
-                        {tab.items.map((item) => (
-                            <div 
-                                key={item.id} 
+                        {items.map((item) => (
+                            <div
+                                key={item.id}
                                 className="text-sm text-zinc-400 hover:text-zinc-100 cursor-pointer"
                                 onClick = {() => onSubmit(item.id) }
                             >
-                                {item.label}
+                                #{item.label}
                             </div>
                         ))}
                     </div>

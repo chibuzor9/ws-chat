@@ -4,5 +4,6 @@ export const TYPES = Object.freeze({
         PING: "ping",
         PONG: "pong",
         ERROR: "error",
-        INIT_ACK: "init_ack"
+        INIT_ACK: "init_ack",
+        FETCH_MESSAGES: "fetch_messages"
 });

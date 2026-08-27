@@ -1,8 +1,21 @@
-import {React, useState} from 'react';
+import React from 'react';
 import UserIcon from "../shared/UserIcon"
 
-const ChatHeader = ({username}) => {
-    const [connectionStatus, setConnectionStatus] = useState("connecting");
+const ChatHeader = ({username, status}) => {
+    // const [connectionStatus, setConnectionStatus] = useState("connecting");
+    // lowkey flawed logic, but it works for now. If the status is "offline", we know the user is offline. 
+    // If the status is a timestamp, we can compare it to the current time to determine if the user is online or offline.
+    const connectionStatus = (() => {
+        if (status === "offline") return "offline";
+
+        const lastSeen = new Date(status);
+        const now = new Date();
+        const diffInSeconds = (now - lastSeen) / 1000;
+
+        if (diffInSeconds < 60) return "online";
+
+        return "offline";
+    })();
 
     return (
         <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">

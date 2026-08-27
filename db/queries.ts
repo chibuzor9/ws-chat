@@ -1,6 +1,6 @@
 import { db } from "../db/index.ts";
 import {users, messages, groups, groupMembers} from "../db/schema.ts";
-import { eq } from "drizzle-orm";
+import { eq, ne, and, or, asc } from "drizzle-orm";
 
 const messageKind = {
     DM: "dm",
@@ -26,13 +26,6 @@ const appendUsername = async (username: string) => {
         .returning({ id: users.id, username: users.username });
 
     return user ?? null;
-}
-
-const handleClientDisconnection = async (username: string) => {
-    const user = await db
-        .update(users)
-        .set({ lastSeenAt: new Date() })
-        .where(eq(users.username, username));
 }
 
 const insertDirectMessage = async ({ senderId, receiverUserId, content }: { senderId: string; receiverUserId: string; content: string }) => {
@@ -75,13 +68,14 @@ const getGroupLabels = async () => {
     return rows;
 }
 
-const getUserLabels = async () => {
+const getUserLabels = async (excludeUsername: string) => {
     const rows = await db
         .select({
             id: users.id,
             username: users.username
         })
-        .from(users);
+        .from(users)
+        .where(ne(users.username, excludeUsername));
 
     return rows;
 }
@@ -97,13 +91,66 @@ const getGroupMembers = async (groupId: string) => {
     return rows;
 }
 
+const getDirectMessages = async (userAId: string, userBId: string) => {
+    return await db
+        .select()
+        .from(messages)
+        .where(
+            and(
+                eq(messages.kind, messageKind.DM),
+                or(
+                    and(
+                        eq(messages.senderId, userAId),
+                        eq(messages.receiverUserId, userBId)
+                    ),
+                    and(
+                        eq(messages.senderId, userBId),
+                        eq(messages.receiverUserId, userAId)
+                    )
+                )
+            )
+        )
+        .orderBy(asc(messages.createdAt));
+};
+
+const getGroupMessages = async (userAId: string, userBId: string) => {
+    return await db
+        .select()
+        .from(messages)
+        .where(
+            and(
+                eq(messages.kind, messageKind.GC),
+                or(
+                    and(
+                        eq(messages.senderId, userAId),
+                        eq(messages.receiverGroupId, userBId)
+                    ),
+                    and(
+                        eq(messages.senderId, userBId),
+                        eq(messages.receiverGroupId, userAId)
+                    )
+                )
+            )
+        )
+        .orderBy(asc(messages.createdAt));
+};
+
+const updateLastSeen = async (userId: string) => {
+    await db
+        .update(users)
+        .set({ lastSeenAt: new Date() })
+        .where(eq(users.id, userId));
+}
+
 export default {
     getUserByUsername,
     appendUsername,
-    handleClientDisconnection,
     insertDirectMessage,
     insertGroupMessage,
     getGroupLabels,
     getUserLabels,
-    getGroupMembers
+    getGroupMembers,
+    getDirectMessages,
+    updateLastSeen,
+    getGroupMessages
 }

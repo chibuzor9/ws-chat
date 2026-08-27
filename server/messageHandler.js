@@ -10,7 +10,10 @@ const {
     insertDirectMessage, 
     insertGroupMessage, 
     getGroupLabels,
-    getUserLabels
+    getUserLabels,
+    getDirectMessages,
+    getGroupMessages,
+    getGroupMembers
 } = dbModule;
 
 const context = { clients, usernameTOID, getSocketByUsername };
@@ -35,25 +38,23 @@ const initializeClient = async (client, content) => {
     
     const userDbStatus = await getUserByUsername(username);
 
-    if (!userDbStatus) {
-        const user = await appendUsername(username);
-        client.id = user.id;
-    } else {
-        client.id = userDbStatus.id;
-    }
+    client.id = userDbStatus 
+        ? userDbStatus.id 
+        : (await appendUsername(username)).id;
 
     client.username = username;    
     context.usernameTOID.set(client.username, client.id);
     context.clients.set(client.id, client);
 
     const [users, groups] = await Promise.all([
-        getUserLabels(), 
+        getUserLabels(client.username),
         getGroupLabels()
     ]);
 
     client.socket.send(JSON.stringify({ 
         type: Message.TYPES.INIT_ACK,
         content: {
+            clientId: client.id,
             users,
             groups
         }
@@ -63,53 +64,77 @@ const initializeClient = async (client, content) => {
 }
 
 const messageHandler = async (client, message) => {
-    const msg = JSON.parse(message) ;
-
-    const msgType = msg.type;
-    const msgContent = msg.content;
-
+    const msgType = message.type;
+    const msgContent = message.content;
 
     if (!Object.values(Message.TYPES).includes(msgType)) {
         console.error(`Invalid message type: ${msgType}`);
         return;
     }
 
-    if (msgType === Message.TYPES.PING) {
-        if(!context.clients.has(client.id)) {
-            client.socket.send(JSON.stringify(
-                errorMessage("Client has not initialized yet.")
-            ));
+    switch (msgType) {
+        case Message.TYPES.PING:
+            if(!context.clients.has(client.id)) {
+                client.socket.send(JSON.stringify(
+                    errorMessage("Client has not initialized yet.")
+                ));
+                return;
+            }
 
-            return;
-        }
+            // await updateLastSeen(client.id); this causes more write no doubt
 
-        client.socket.send(JSON.stringify({ 
-            type: Message.TYPES.PONG,
-            content: "Ping Acknowledged. Pong response sent."
-        }));
-    } else if (msgType === Message.TYPES.INIT) {
-        await initializeClient(client, msgContent);
-    } else if (msgType === Message.TYPES.CHAT) {
-        if(!context.clients.has(client.id)) {
-            client.socket.send(JSON.stringify(
-                errorMessage("Client has not initialized yet.")
-            ));
-            return;
-        }
+            client.socket.send(JSON.stringify({ 
+                type: Message.TYPES.PONG,
+                content: "Ping Acknowledged. Pong response sent."
+            }));
+
+            break;
+        case Message.TYPES.INIT:
+            await initializeClient(client, msgContent);
+
+            break;
+        case Message.TYPES.CHAT:
+            if(!context.clients.has(client.id)) {
+                client.socket.send(JSON.stringify(
+                    errorMessage("Client has not initialized yet.")
+                ));
+                return;
+            }
         
-        if (msgContent.kind === "dm") {
-            await insertDirectMessage(
-                context.usernameTOID.get(msgContent.sender), 
-                msgContent.receiver, 
-                msgContent.message
-            );            
-        } else {
-            // Handle group message logic here
-        }
-    } else if (msgType === Message.TYPES.ERROR) {
-        console.log(`Error message received: ${msgContent}`);
-    } else {
-        console.log(`Undefined message type use: ${msgType}`);
+            if (msgContent.kind === "dm") {
+                await insertDirectMessage({
+                    senderId: client.id, 
+                    receiverUserId: msgContent.receiver, 
+                    content: msgContent.message
+                });            
+            } else {
+                // Handle group message logic here
+            }
+
+            break;
+        case Message.TYPES.FETCH_MESSAGES:
+            const messages = await getDirectMessages(
+                context.usernameTOID.get(msgContent.userId), 
+                msgContent.conversationId
+            );
+
+            const response = new Message({
+                type: Message.TYPES.FETCH_MESSAGES,
+                content: {
+                    conversationId: msgContent.conversationId,
+                    messages
+                }
+            });
+
+            client.socket.send(JSON.stringify(response));
+
+            break;
+        case Message.TYPES.ERROR:
+            console.log(`Error message received: ${msgContent}`);
+
+            break;
+        default:
+            console.log(`Undefined message type used: ${msgType}`);
     }
 };
 

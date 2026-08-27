@@ -10,7 +10,7 @@ const errorMessage = (error) => {
 }
 */
 
-const messageHandler = (client, message) => {
+const messageHandler = (client, message) => { // client socket, message string
     const msg = JSON.parse(message);
 
     const msgType = msg.type;
@@ -20,25 +20,35 @@ const messageHandler = (client, message) => {
         console.error(`Invalid message type: ${msg.type}`);
         return;
     }
-    if (msgType === Message.TYPES.INIT_ACK) {
-        return {
-            status: "online",
-            users: msgContent.users,
-            groups: msgContent.groups
-        };
-    } else if (msgType === Message.TYPES.PONG) {// do something
-        console.log("Pong Acknowledged");
 
-        return {
-            awaitingPong: false,
-            status: "online"
-        };
-    } else if (msgType === Message.TYPES.CHAT) {
-        // do something with chat message        
-    } else if (msgType === Message.TYPES.ERROR) {
-        console.log(`Error message received: ${msgContent}`);
-    } else {
-        console.log(`Undefined message type used: ${msgType}`);
+    switch (msgType) {
+        case Message.TYPES.INIT_ACK:
+            return {
+                senderId: msgContent.clientId,
+                status: "online",
+                users: msgContent.users,
+                groups: msgContent.groups
+            };
+        case Message.TYPES.PONG:
+            console.log("Pong Acknowledged");
+
+            return {
+                awaitingPong: false,
+                status: "online"
+            };
+        case Message.TYPES.CHAT:
+            // Handle incoming chat messages I guess
+            break;
+        case Message.TYPES.FETCH_MESSAGES:
+            return {
+                conversationId: msgContent.conversationId,
+                messages: msgContent.messages
+            };
+        case Message.TYPES.ERROR:
+            console.log(`Error message received: ${msgContent}`);
+            break;
+        default:
+            console.log(`Undefined message type used: ${msgType}`);
     }
 };
 
