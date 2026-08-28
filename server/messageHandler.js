@@ -3,11 +3,10 @@ import clientsModule from './clients.js';
 import dbModule from '../db/queries.ts';
 
 const { clients, usernameTOID, getSocketByUsername, getSocketById } = clientsModule;
-const { 
+const {
     getUserByUsername,
-    appendUsername, 
-    handleClientDisconnection, 
-    insertDirectMessage, 
+    appendUsername,
+    insertDirectMessage,
     insertGroupMessage, 
     getGroupLabels,
     getUserLabels,
@@ -15,6 +14,7 @@ const {
     getGroupMessages,
     getGroupMembers,
     createGroup,
+    addGroupMember
 } = dbModule;
 
 const context = { clients, usernameTOID, getSocketByUsername, getSocketById };
@@ -64,6 +64,14 @@ const initializeClient = async (client, content) => {
     console.log(`User ${client.username} initialized with ID: ${client.id}`);
 }
 
+const broadcastResponse = (response, excludeClientId = null) => {
+    context.clients.forEach((client) => {
+        if (client.id !== excludeClientId) {
+            client.socket.send(JSON.stringify(response));
+        }
+    });
+};
+
 const messageHandler = async (client, message) => {
     const msgType = message.type;
     const msgContent = message.content;
@@ -106,6 +114,13 @@ const messageHandler = async (client, message) => {
             }
         
             if (msgContent.kind === "dm") {
+                if (msgContent.receiver === client.id) {
+                    client.socket.send(JSON.stringify(
+                        errorMessage("You cannot send a direct message to yourself.")
+                    ));
+                    return;
+                }
+
                 const newMessage = await insertDirectMessage({
                     senderId: client.id, 
                     receiverUserId: msgContent.receiver, 
@@ -125,14 +140,46 @@ const messageHandler = async (client, message) => {
                 });
                 
                 client.socket.send(JSON.stringify(response));
-
+                
                 const receiverSocket = context.getSocketById(newMessage.receiverUserId);
-                receiverSocket?.readyState === WebSocket.OPEN && 
-                    receiverSocket?.send(JSON.stringify(response));
+
+                if (receiverSocket && receiverSocket.readyState === receiverSocket.OPEN) {
+                    receiverSocket.send(JSON.stringify(response));
+                }
             }
 
             if (msgContent.kind === "gc") {
-                // do something
+                const newMessage = await insertGroupMessage({
+                    senderId: client.id, 
+                    receiverGroupId: msgContent.receiver, 
+                    content: msgContent.message
+                });
+                
+                const response = new Message({
+                    type: Message.TYPES.CHAT,
+                    content: {
+                        messageId: newMessage.id,
+                        messageKind: "gc",
+                        senderId: client.id,
+                        receiverId: newMessage.receiverGroupId,
+                        content: newMessage.content,
+                        createdAt: newMessage.createdAt
+                    }
+                });
+                
+                client.socket.send(JSON.stringify(response));
+                
+                const groupMembers = await getGroupMembers(newMessage.receiverGroupId);
+
+                groupMembers.forEach((member) => {
+                    if (member.userId !== client.id) {
+                        const memberSocket = context.getSocketById(member.userId);
+
+                        if (memberSocket && memberSocket.readyState === memberSocket.OPEN) {
+                            memberSocket.send(JSON.stringify(response));
+                        }
+                    }
+                });
             }
             break;
         }
@@ -144,21 +191,37 @@ const messageHandler = async (client, message) => {
                 return;
             }
 
-            const messages = await getDirectMessages(
-                client.id, 
-                msgContent.conversationId
-            );
-            
-            const response = new Message({
-                type: Message.TYPES.FETCH_MESSAGES,
-                content: {
-                    conversationId: msgContent.conversationId,
-                    messages
-                }
-            });
-            
-            client.socket.send(JSON.stringify(response));
-            
+            if (msgContent.kind === "dm") {
+                const messages = await getDirectMessages(
+                    client.id, 
+                    msgContent.conversationId
+                );
+                
+                const response = new Message({
+                    type: Message.TYPES.FETCH_MESSAGES,
+                    content: {
+                        conversationId: msgContent.conversationId,
+                        messages
+                    }
+                });
+                
+                client.socket.send(JSON.stringify(response));
+            } else if (msgContent.kind === "gc") {
+                const messages = await getGroupMessages(
+                    msgContent.conversationId
+                );
+
+                const response = new Message({
+                    type: Message.TYPES.FETCH_MESSAGES,
+                    content: {
+                        conversationId: msgContent.conversationId,
+                        messages
+                    }
+                });
+
+                client.socket.send(JSON.stringify(response));
+            }
+
             break;
         }
         case Message.TYPES.CREATE_GROUP: {
@@ -174,11 +237,16 @@ const messageHandler = async (client, message) => {
             try {
                 group = await createGroup(msgContent.groupLabel, client.id);
             } catch (error) {
-                if (error?.code !== "23505") throw error; // let server handle non-duplicates
+                const dbError = error?.cause ?? error; // the pg error is on .cause: DrizzleQueryError
 
-                client.socket.send(JSON.stringify(
-                    errorMessage(`A group named "${msgContent.groupLabel}" already exists.`)
-                ));
+                if (dbError?.code === "23505") {
+                    client.socket.send(JSON.stringify(
+                        errorMessage(`A group named "${msgContent.groupLabel}" already exists.`)
+                    ));
+                } else {
+                    throw error; // let server handle non-duplicate errors
+                }
+
                 return;
             }
 
@@ -193,8 +261,10 @@ const messageHandler = async (client, message) => {
             });
 
             client.socket.send(JSON.stringify(response));
+            // broadcastResponse(response, client.id); not needed yet, but could be useful 
+            // for a "new group created" notification in the future
 
-            break;
+            break;            
         }
         case Message.TYPES.ERROR:
             console.log(`Error message received: ${msgContent}`);

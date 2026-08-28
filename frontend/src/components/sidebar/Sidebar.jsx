@@ -7,13 +7,24 @@ const Sidebar = ({
     connectionStatus, 
     onSelectConvo, 
     onLogOut, 
-    tabsData 
+    tabsData, 
+    onCreate
 }) => {    
     return (
         <div className="flex h-full flex-col bg-zinc-800 text-zinc-100">
             <Logo />
-            <NavigationTabs onSelectConvo={onSelectConvo} tabsData={tabsData}/> 
-            <Profile username={username} connectionStatus={connectionStatus} onLogOut={onLogOut} />
+
+            <NavigationTabs 
+                onSelectConvo={onSelectConvo} 
+                tabsData={tabsData} 
+                onCreate={onCreate}
+            /> 
+
+            <Profile
+                username={username} 
+                connectionStatus={connectionStatus} 
+                onLogOut={onLogOut} 
+            />
         </div>
 )};
 

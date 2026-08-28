@@ -1,11 +1,17 @@
 import { db } from "../db/index.ts";
-import {users, messages, groups, groupMembers} from "../db/schema.ts";
+import {users, messages, groups, groupMembers, groupRole, messageKind} from "../db/schema.ts";
 import { eq, ne, and, or, asc } from "drizzle-orm";
 
-const messageKind = {
-    DM: "dm",
-    GC: "gc"
-} as const;
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Executor = typeof db | Tx;
+
+type AddGroupMemberInput = {
+    groupId: string;
+    userId: string;
+    role: typeof groupRole.enumValues[number];
+    executor?: Executor;
+}
+
 
 const getUserByUsername = async (username: string) => {
     const [user] = await db
@@ -32,7 +38,7 @@ const insertDirectMessage = async ({ senderId, receiverUserId, content }: { send
     const [row] = await db
         .insert(messages)
         .values({
-            kind: messageKind.DM,
+            kind: messageKind.enumValues[0],
             senderId,
             receiverUserId,
             content
@@ -53,13 +59,12 @@ const insertGroupMessage = async ({ senderId, receiverGroupId, content }: { send
     const [row] = await db
         .insert(messages)
         .values({
-            kind: messageKind.GC,
+            kind: messageKind.enumValues[1],
             senderId,
             receiverGroupId,
-            content,
-            createdAt: new Date()
+            content
         })
-        .returning({ id: messages.id, createdAt: messages.createdAt });
+        .returning({ id: messages.id, receiverGroupId: messages.receiverGroupId, content: messages.content, createdAt: messages.createdAt });
 
     return row;
 }
@@ -104,7 +109,7 @@ const getDirectMessages = async (userAId: string, userBId: string) => {
         .from(messages)
         .where(
             and(
-                eq(messages.kind, messageKind.DM),
+                eq(messages.kind, messageKind.enumValues[0]),
                 or(
                     and(
                         eq(messages.senderId, userAId),
@@ -120,14 +125,14 @@ const getDirectMessages = async (userAId: string, userBId: string) => {
         .orderBy(asc(messages.createdAt));
 };
 
-const getGroupMessages = async (userId: string) => {
+const getGroupMessages = async (groupId: string) => {
     return await db
         .select()
         .from(messages)
         .where(
             and(
-                eq(messages.kind, messageKind.GC),
-                eq(messages.receiverGroupId, userId)
+                eq(messages.kind, messageKind.enumValues[1]),
+                eq(messages.receiverGroupId, groupId)
             )
         )
         .orderBy(asc(messages.createdAt));
@@ -140,13 +145,35 @@ const updateLastSeen = async (userId: string) => {
         .where(eq(users.id, userId));
 }
 
-const createGroup = async (label: string, createdBy: string) => {
-    const [group] = await db
-        .insert(groups)
-        .values({ label, createdBy })
-        .returning({ id: groups.id, label: groups.label });
+const addGroupMember = async ({ 
+    groupId, 
+    userId, 
+    role = groupRole.enumValues[1], 
+    executor = db 
+} : AddGroupMemberInput) => {
+    const [member] = await executor
+        .insert(groupMembers)
+        .values({ 
+            groupId, 
+            userId, 
+            role
+        })
+        .returning({ groupId: groupMembers.groupId, userId: groupMembers.userId, role: groupMembers.role });
 
-    return group;
+    return member;
+}
+
+const createGroup = async (label: string, createdBy: string) => {
+    return await db.transaction(async (tx) => {
+        const [group] = await tx
+            .insert(groups)
+            .values({ label, createdBy })
+            .returning({ id: groups.id, label: groups.label });
+
+        await addGroupMember({ groupId: group.id, userId: createdBy, role: groupRole.enumValues[0], executor: tx });
+
+        return group;
+    });
 }
 
 export default {
@@ -160,5 +187,6 @@ export default {
     getDirectMessages,
     updateLastSeen,
     getGroupMessages,
+    addGroupMember,
     createGroup
 }

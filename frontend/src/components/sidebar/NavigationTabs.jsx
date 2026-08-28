@@ -7,11 +7,12 @@ tabsData = {
     groups: [{ id, label }]
 }
 */
-const NavigationTabs = ({ onSelectConvo, tabsData }) => {
+
+const NavigationTabs = ({ onSelectConvo, tabsData, onCreate }) => {
     const { users, groups } = tabsData ?? {};
 
-    const handleSelectedUser = (selectedUserId) => {
-        onSelectConvo(selectedUserId);
+    const handleSelectedUser = (id, kind) => {
+        onSelectConvo({ conversationId: id, kind });
     };
 
     const toItems = (rows) => {
@@ -26,7 +27,7 @@ const NavigationTabs = ({ onSelectConvo, tabsData }) => {
 
     const sections = [
         { kind: "dm", label: "Direct Messages", items: userTabs },
-        { kind: "group", label: "Groups", items: groupTabs }
+        { kind: "gc", label: "Groups", items: groupTabs }
     ];
 
     return (
@@ -36,7 +37,9 @@ const NavigationTabs = ({ onSelectConvo, tabsData }) => {
                     key={section.kind}
                     label={section.label}
                     items={section.items}
-                    onSubmit={handleSelectedUser}
+                    onSubmit={(id) => handleSelectedUser(id, section.kind)}
+                    onCreate={onCreate}
+                    isGroup={section.kind === "gc"}
                 />
             ))}
         </div>

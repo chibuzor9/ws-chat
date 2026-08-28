@@ -10,22 +10,23 @@ import RetryModal from './components/modal/RetryModal.jsx';
 
 function App() {
     const [username, setUsername] = useState(() => localStorage.getItem("ws-chat:username") ?? "");
-    const [activeConvo, setActiveConvo] = useState(false);
-    const [conversationId, setConversationId] = useState("");
+    const [convo, setConvo] = useState(null);
     const [connectionStatus, setConnectionStatus] = useState("offline");
     const [tabsData, setTabsData] = useState({});
     const [messages, setMessages] = useState({});
     const [retry, setRetry] = useState(0);
     const socket = useRef(null);
     const users = new Map(tabsData?.users?.map((user) => [user.id, user]));
-    const [senderId, setSenderId] = useState("");
+    const senderId = useRef(null);
 
     const handleUserLogout = () => {
         socket.current?.close(1000, "User logged out");
         setUsername("");
         localStorage.removeItem("ws-chat:username");
-        setActiveConvo(false);
-        setConversationId("");
+        setConvo(null);
+        setTabsData({});
+        setMessages({});
+        setConnectionStatus("offline");
     }
 
     const handleRetryDependency = () => {
@@ -43,30 +44,30 @@ function App() {
         localStorage.setItem("ws-chat:username", actualUsername)
     }
 
-    const handleActiveConversation = (userId) => {
-        const fetchMsg = new Message({
-            type: Message.TYPES.FETCH_MESSAGES,
+    const handleCreateGroup = (groupName) => {
+        const createGroupMsg = new Message({
+            type: Message.TYPES.CREATE_GROUP,
             content: {
-                userId: username,
-                conversationId: userId,
+                groupLabel: groupName
             }
         });
 
-        if (userId) {
-            setActiveConvo(true);
-            setConversationId(`${userId}`)
+        if (socket.current && socket.current.readyState === WebSocket.OPEN) {
+            socket.current.send(JSON.stringify(createGroupMsg));
         }
-
-        socket.current?.send(JSON.stringify(fetchMsg));
     };
+
+    const handleActiveConversation = ({ conversationId, kind }) => {
+        setConvo({ conversationId, kind });
+    };  
 
     const handleChatSubmit = (text) => {
         const chatMsg = new Message({
             type: Message.TYPES.CHAT, 
             content: {
-                kind: "dm",
+                kind: convo.kind,
                 sender: username,
-                receiver: conversationId,
+                receiver: convo.conversationId,
                 message: text
             }
         });
@@ -76,13 +77,14 @@ function App() {
         }
     };
 
-    useEffect(() => {
+    useEffect(() => { // establish WebSocket connection
         if (!username) return; // base case for no username
 
         let ws, pingInterval, retryTimer;
-        let attempts = 0, awaitingPong = false, disposed = false;
+        let attempts = 0, disposed = false;
 
         const connect = () => {
+            let awaitingPong = false
             setConnectionStatus("connecting");
             
             const wsUri = `ws://127.0.0.1:${import.meta.env.VITE_WS_PORT || 8080}`;
@@ -121,11 +123,11 @@ function App() {
                 
                 if (result && result.awaitingPong !== undefined) {
                     awaitingPong = result.awaitingPong;
-                    attempts = 0;
                 }
 
                 if (result && result.senderId) {
-                    setSenderId(result.senderId);
+                    senderId.current = result.senderId;
+                    attempts = 0;
                 }
 
                 if (result && result.status) {
@@ -149,11 +151,12 @@ function App() {
 
                 if (result && result.chat) {
                     setMessages((prev) => {
-                        const convoId = result.chat.kind === "dm" 
-                            ? (result.chat.senderId === senderId
-                                ? result.chat.receiverId 
-                                : result.chat.senderId) 
-                            : result.chat.conversationId;
+                        const convoId = result.chat.kind === "dm"
+                        ? (result.chat.senderId === senderId.current
+                            ? result.chat.receiverId
+                            : result.chat.senderId)
+                        : result.chat.receiverId;
+
                         return {
                             ...prev,
                             [convoId]: [...(prev[convoId] || []), result.chat]
@@ -162,7 +165,13 @@ function App() {
                 }
 
                 if (result && result.group) {
-                    // do something
+                    setTabsData((prev) => ({
+                        ...prev,
+                        groups: [...(prev.groups || []), {
+                            id: result.group.id,
+                            label: result.group.label
+                        }]
+                    }));
                 }
             });
 
@@ -203,6 +212,20 @@ function App() {
         return cleanup;
     }, [username, retry]); // dependencies
 
+    useEffect(() => { // fetch messages for the active conversation
+        if (connectionStatus !== "online" || !convo) return;
+
+        const fetchMsg = new Message({
+            type: Message.TYPES.FETCH_MESSAGES,
+            content: { 
+                conversationId: convo.conversationId,
+                kind: convo.kind
+            }
+        });
+
+        socket.current?.send(JSON.stringify(fetchMsg));
+    }, [connectionStatus, convo]);
+
 
     return (
         <div className="flex h-dvh w-full overflow-hidden bg-zinc-200">
@@ -219,15 +242,16 @@ function App() {
                     onSelectConvo={handleActiveConversation}
                     onLogOut={handleUserLogout}
                     tabsData={tabsData}
+                    onCreate={handleCreateGroup}
                 />
             </aside>
             <main className={`min-w-0 flex-1`}>
-                { activeConvo ? 
+                { convo ? 
                     <ChatView 
-                        messages={messages[conversationId] || []}
+                        messages={messages[convo.conversationId] || []}
                         onSubmit={handleChatSubmit}
-                        recipientData={users.get(conversationId)}
-                        senderId={senderId}
+                        recipientData={users.get(convo.conversationId)}
+                        senderId={senderId} // accessed current val in MessageList.jsx
                     /> 
                     : 
                     <div className="flex h-full items-center justify-center px-6">

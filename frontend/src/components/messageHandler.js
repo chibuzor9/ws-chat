@@ -48,8 +48,8 @@ const messageHandler = (message) => { // message string
         }
         case Message.TYPES.CREATE_GROUP: {
             const groupResponse = {
-                groupId: msgContent.groupId,
-                groupLabel: msgContent.groupLabel
+                id: msgContent.groupId,
+                label: msgContent.groupLabel
             };
 
             return {
