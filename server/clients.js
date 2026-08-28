@@ -1,4 +1,4 @@
-const clients = new Map();       // clientId -> { id, socket, username, hasInitialized }
+const clients = new Map();       // clientId -> { id, socket, username }
 
 const usernameTOID = new Map();  // username -> clientId
 
@@ -6,10 +6,14 @@ const getSocketByUsername = (username) => {
     const clientId = usernameTOID.get(username);
 
     if (clientId) {
-        return clients.get(clientId).socket;  
+        return clients.get(clientId)?.socket ?? null;
     }
 
     return null;
 };
 
-export default { clients, usernameTOID, getSocketByUsername };
+const getSocketById = (clientId) => {
+    return clients.get(clientId)?.socket ?? null;
+};
+
+export default { clients, usernameTOID, getSocketByUsername, getSocketById };

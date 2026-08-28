@@ -12,7 +12,7 @@ const MessageList = ({ messages, isGroup, senderId }) => {
                         sender: message.senderId,
                         time: message.createdAt,
                         isGroup: isGroup,
-                        mine: message.senderId === senderId
+                        mine: message.senderId === senderId.current // useRef instance 
                     }}
                 />
             ))}

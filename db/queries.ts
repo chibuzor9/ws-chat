@@ -37,7 +37,14 @@ const insertDirectMessage = async ({ senderId, receiverUserId, content }: { send
             receiverUserId,
             content
         })
-        .returning({ id: messages.id, createdAt: messages.createdAt });
+        .returning({ 
+            id: messages.id, 
+            createdAt: messages.createdAt,
+            kind: messages.kind,
+            senderId: messages.senderId,
+            receiverUserId: messages.receiverUserId,
+            content: messages.content
+         });
 
     return row;
 }
@@ -113,23 +120,14 @@ const getDirectMessages = async (userAId: string, userBId: string) => {
         .orderBy(asc(messages.createdAt));
 };
 
-const getGroupMessages = async (userAId: string, userBId: string) => {
+const getGroupMessages = async (userId: string) => {
     return await db
         .select()
         .from(messages)
         .where(
             and(
                 eq(messages.kind, messageKind.GC),
-                or(
-                    and(
-                        eq(messages.senderId, userAId),
-                        eq(messages.receiverGroupId, userBId)
-                    ),
-                    and(
-                        eq(messages.senderId, userBId),
-                        eq(messages.receiverGroupId, userAId)
-                    )
-                )
+                eq(messages.receiverGroupId, userId)
             )
         )
         .orderBy(asc(messages.createdAt));
@@ -142,6 +140,15 @@ const updateLastSeen = async (userId: string) => {
         .where(eq(users.id, userId));
 }
 
+const createGroup = async (label: string, createdBy: string) => {
+    const [group] = await db
+        .insert(groups)
+        .values({ label, createdBy })
+        .returning({ id: groups.id, label: groups.label });
+
+    return group;
+}
+
 export default {
     getUserByUsername,
     appendUsername,
@@ -152,5 +159,6 @@ export default {
     getGroupMembers,
     getDirectMessages,
     updateLastSeen,
-    getGroupMessages
+    getGroupMessages,
+    createGroup
 }

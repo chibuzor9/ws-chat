@@ -10,7 +10,7 @@ const errorMessage = (error) => {
 }
 */
 
-const messageHandler = (client, message) => { // client socket, message string
+const messageHandler = (message) => { // message string
     const msg = JSON.parse(message);
 
     const msgType = msg.type;
@@ -30,15 +30,32 @@ const messageHandler = (client, message) => { // client socket, message string
                 groups: msgContent.groups
             };
         case Message.TYPES.PONG:
-            console.log("Pong Acknowledged");
-
             return {
                 awaitingPong: false,
                 status: "online"
             };
-        case Message.TYPES.CHAT:
-            // Handle incoming chat messages I guess
-            break;
+        case Message.TYPES.CHAT: {
+            const chatResponse = {
+                id: msgContent.messageId,
+                kind: msgContent.messageKind,
+                senderId: msgContent.senderId,
+                receiverId: msgContent.receiverId,
+                content: msgContent.content,
+                createdAt: msgContent.createdAt
+            };
+
+            return { chat: chatResponse};
+        }
+        case Message.TYPES.CREATE_GROUP: {
+            const groupResponse = {
+                groupId: msgContent.groupId,
+                groupLabel: msgContent.groupLabel
+            };
+
+            return {
+                group: groupResponse
+            };
+        }
         case Message.TYPES.FETCH_MESSAGES:
             return {
                 conversationId: msgContent.conversationId,

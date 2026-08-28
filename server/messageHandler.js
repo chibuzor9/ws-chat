@@ -2,7 +2,7 @@ import Message from "../shared/Message.js";
 import clientsModule from './clients.js';
 import dbModule from '../db/queries.ts';
 
-const { clients, usernameTOID, getSocketByUsername } = clientsModule;
+const { clients, usernameTOID, getSocketByUsername, getSocketById } = clientsModule;
 const { 
     getUserByUsername,
     appendUsername, 
@@ -13,10 +13,11 @@ const {
     getUserLabels,
     getDirectMessages,
     getGroupMessages,
-    getGroupMembers
+    getGroupMembers,
+    createGroup,
 } = dbModule;
 
-const context = { clients, usernameTOID, getSocketByUsername };
+const context = { clients, usernameTOID, getSocketByUsername, getSocketById };
 
 const errorMessage = (error) => {
     return new Message({
@@ -73,7 +74,7 @@ const messageHandler = async (client, message) => {
     }
 
     switch (msgType) {
-        case Message.TYPES.PING:
+        case Message.TYPES.PING: {
             if(!context.clients.has(client.id)) {
                 client.socket.send(JSON.stringify(
                     errorMessage("Client has not initialized yet.")
@@ -82,6 +83,7 @@ const messageHandler = async (client, message) => {
             }
 
             // await updateLastSeen(client.id); this causes more write no doubt
+            // it'd be lovely to handle this with the maps on the server
 
             client.socket.send(JSON.stringify({ 
                 type: Message.TYPES.PONG,
@@ -89,11 +91,13 @@ const messageHandler = async (client, message) => {
             }));
 
             break;
-        case Message.TYPES.INIT:
+        }
+        case Message.TYPES.INIT: {
             await initializeClient(client, msgContent);
 
             break;
-        case Message.TYPES.CHAT:
+        }
+        case Message.TYPES.CHAT: {
             if(!context.clients.has(client.id)) {
                 client.socket.send(JSON.stringify(
                     errorMessage("Client has not initialized yet.")
@@ -102,22 +106,49 @@ const messageHandler = async (client, message) => {
             }
         
             if (msgContent.kind === "dm") {
-                await insertDirectMessage({
+                const newMessage = await insertDirectMessage({
                     senderId: client.id, 
                     receiverUserId: msgContent.receiver, 
                     content: msgContent.message
-                });            
-            } else {
-                // Handle group message logic here
+                });
+                
+                const response = new Message({
+                    type: Message.TYPES.CHAT,
+                    content: {
+                        messageId: newMessage.id,
+                        messageKind: newMessage.kind,
+                        senderId: newMessage.senderId,
+                        receiverId: newMessage.receiverUserId,
+                        content: newMessage.content,
+                        createdAt: newMessage.createdAt
+                    }
+                });
+                
+                client.socket.send(JSON.stringify(response));
+
+                const receiverSocket = context.getSocketById(newMessage.receiverUserId);
+                receiverSocket?.readyState === WebSocket.OPEN && 
+                    receiverSocket?.send(JSON.stringify(response));
             }
 
+            if (msgContent.kind === "gc") {
+                // do something
+            }
             break;
-        case Message.TYPES.FETCH_MESSAGES:
+        }
+        case Message.TYPES.FETCH_MESSAGES: {
+            if(!context.clients.has(client.id)) {
+                client.socket.send(JSON.stringify(
+                    errorMessage("Client has not initialized yet.")
+                ));
+                return;
+            }
+
             const messages = await getDirectMessages(
-                context.usernameTOID.get(msgContent.userId), 
+                client.id, 
                 msgContent.conversationId
             );
-
+            
             const response = new Message({
                 type: Message.TYPES.FETCH_MESSAGES,
                 content: {
@@ -125,10 +156,46 @@ const messageHandler = async (client, message) => {
                     messages
                 }
             });
+            
+            client.socket.send(JSON.stringify(response));
+            
+            break;
+        }
+        case Message.TYPES.CREATE_GROUP: {
+            if(!context.clients.has(client.id)) {
+                client.socket.send(JSON.stringify(
+                    errorMessage("Client has not initialized yet.")
+                ));
+                return;
+            }
+
+            let group;
+
+            try {
+                group = await createGroup(msgContent.groupLabel, client.id);
+            } catch (error) {
+                if (error?.code !== "23505") throw error; // let server handle non-duplicates
+
+                client.socket.send(JSON.stringify(
+                    errorMessage(`A group named "${msgContent.groupLabel}" already exists.`)
+                ));
+                return;
+            }
+
+            const { id: groupId, label: groupLabel } = group;
+
+            const response = new Message({
+                type: Message.TYPES.CREATE_GROUP,
+                content: {
+                    groupId,
+                    groupLabel
+                }
+            });
 
             client.socket.send(JSON.stringify(response));
 
             break;
+        }
         case Message.TYPES.ERROR:
             console.log(`Error message received: ${msgContent}`);
 

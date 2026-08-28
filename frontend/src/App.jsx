@@ -115,7 +115,7 @@ function App() {
             });
 
             ws.addEventListener("message", (event) => {
-                const result = messageHandler(ws, event.data);
+                const result = messageHandler(event.data);
 
                 if (!result) return;
                 
@@ -145,6 +145,24 @@ function App() {
                         ...prev,
                         [result.conversationId]: result.messages
                     }));                                      
+                }
+
+                if (result && result.chat) {
+                    setMessages((prev) => {
+                        const convoId = result.chat.kind === "dm" 
+                            ? (result.chat.senderId === senderId
+                                ? result.chat.receiverId 
+                                : result.chat.senderId) 
+                            : result.chat.conversationId;
+                        return {
+                            ...prev,
+                            [convoId]: [...(prev[convoId] || []), result.chat]
+                        };
+                    });
+                }
+
+                if (result && result.group) {
+                    // do something
                 }
             });
 

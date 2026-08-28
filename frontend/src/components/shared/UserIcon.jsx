@@ -14,7 +14,7 @@ const UserIcon = ({status : connectionStatus}) => {
                 <UserRound className="size-5 text-zinc-200 " />
 
                 <span
-                    className={`absolute bottom-0 right-0 size-3 rounded-full ring-2 ring-zinc-800 ${statusColors[connectionStatus]} ${connectionStatus === "connecting" ? "animate-bounce" : ""} ${connectionStatus === "offline" ? "animate-pulse" : ""}`}
+                    className={`absolute bottom-0 right-0 size-3 rounded-full ring-2 ring-zinc-800 ${statusColors[connectionStatus]} ${connectionStatus === "connecting" ? "animate-bounce" : ""}`}
                     aria-label={connectionStatus}
                 />
         </div>

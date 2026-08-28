@@ -56,11 +56,12 @@ server.on("connection", (ws) => {
             return;
         }
 
-        if (clients.get(client.id)) {
+        if (clients.get(client.id) === client) {
             clients.delete(client.id);
             usernameTOID.delete(client.username);
             await updateLastSeen(client.id);
         }
+        
         console.log(`Client ${client.username} (${client.id}) disconnected.`);
     });
 

@@ -8,7 +8,8 @@
   },
   "scripts": {
     "server": "node server/index.js",
-    "client": "node client/index.js"
+    "client": "node client/index.js",
+    "drizzle": "drizzle-kit generate && drizzle-kit migrate"
   },
   "devDependencies": {
     "@types/pg": "^8.23.1",

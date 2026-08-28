@@ -24,7 +24,7 @@ export const users = pgTable("users", {
 
 export const groups = pgTable("groups", {
   id: uuid("id").defaultRandom().primaryKey(),
-  label: text("label").notNull(),
+  label: text("label").notNull().unique(),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

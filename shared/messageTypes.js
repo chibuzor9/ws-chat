@@ -5,5 +5,6 @@ export const TYPES = Object.freeze({
         PONG: "pong",
         ERROR: "error",
         INIT_ACK: "init_ack",
-        FETCH_MESSAGES: "fetch_messages"
+        FETCH_MESSAGES: "fetch_messages",
+        CREATE_GROUP: "create_group",
 });
