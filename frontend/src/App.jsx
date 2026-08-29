@@ -16,8 +16,11 @@ function App() {
     const [messages, setMessages] = useState({});
     const [retry, setRetry] = useState(0);
     const socket = useRef(null);
-    const users = new Map(tabsData?.users?.map((user) => [user.id, user]));
     const senderId = useRef(null);
+    const tabsDataMap = {
+        users: new Map(tabsData?.users?.map((user) => [user.id, user])),
+        groups: new Map(tabsData?.groups?.map((group) => [group.id, group]))
+    }
 
     const handleUserLogout = () => {
         socket.current?.close(1000, "User logged out");
@@ -127,11 +130,8 @@ function App() {
 
                 if (result && result.senderId) {
                     senderId.current = result.senderId;
+                    setConnectionStatus("online");
                     attempts = 0;
-                }
-
-                if (result && result.status) {
-                    setConnectionStatus(result.status);
                 }
 
                 if (result && result.users) {
@@ -146,7 +146,16 @@ function App() {
                     setMessages((prev) => ({
                         ...prev,
                         [result.conversationId]: result.messages
-                    }));                                      
+                    }));
+                    setTabsData((prev) => ({
+                        ...prev,
+                        users: prev.users.map((user) => {
+                            if (user.id === result.conversationId) {
+                                return { ...user, status: result.status };
+                            }
+                            return user;
+                        })
+                    })); 
                 }
 
                 if (result && result.chat) {
@@ -182,6 +191,12 @@ function App() {
                 if (event.code === 3000) {
                     disposed = true;
                     setConnectionStatus("reconnect");
+
+                    setTabsData((prev) => ({
+                        ...prev,
+                        users: prev.users?.map((user) => ({ ...user, status: "inactive" }))
+                    }));
+
                     console.log("Connection closed due to another session taking over the username.");
                 }
 
@@ -250,7 +265,16 @@ function App() {
                     <ChatView 
                         messages={messages[convo.conversationId] || []}
                         onSubmit={handleChatSubmit}
-                        recipientData={users.get(convo.conversationId)}
+                        recipientData={tabsDataMap.users.get(convo.conversationId) || tabsDataMap.groups.get(convo.conversationId)}
+                        status={(() => {
+                            if (connectionStatus !== "online") return "inactive";
+
+                            if (tabsDataMap.users?.has(convo?.conversationId)) {
+                                return tabsDataMap.users.get(convo.conversationId)?.status
+                            }
+
+                            return "online"
+                        })()}
                         senderId={senderId} // accessed current val in MessageList.jsx
                     /> 
                     : 

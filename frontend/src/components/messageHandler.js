@@ -25,7 +25,6 @@ const messageHandler = (message) => { // message string
         case Message.TYPES.INIT_ACK:
             return {
                 senderId: msgContent.clientId,
-                status: "online",
                 users: msgContent.users,
                 groups: msgContent.groups
             };
@@ -59,7 +58,8 @@ const messageHandler = (message) => { // message string
         case Message.TYPES.FETCH_MESSAGES:
             return {
                 conversationId: msgContent.conversationId,
-                messages: msgContent.messages
+                messages: msgContent.messages,
+                status: msgContent.status
             };
         case Message.TYPES.ERROR:
             console.log(`Error message received: ${msgContent}`);

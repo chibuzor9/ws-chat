@@ -1,12 +1,12 @@
-import React from 'react';
 import { UserRound } from "lucide-react";
 
-const UserIcon = ({status : connectionStatus}) => {
+const UserIcon = ({ status }) => {
     const statusColors = {
         online: "bg-emerald-400",
         connecting: "bg-amber-400",
         offline: "bg-red-400",
         reconnect: "bg-red-400",
+        inactive: "bg-zinc-400"
     }
     
     return (
@@ -14,8 +14,8 @@ const UserIcon = ({status : connectionStatus}) => {
                 <UserRound className="size-5 text-zinc-200 " />
 
                 <span
-                    className={`absolute bottom-0 right-0 size-3 rounded-full ring-2 ring-zinc-800 ${statusColors[connectionStatus]} ${connectionStatus === "connecting" ? "animate-bounce" : ""}`}
-                    aria-label={connectionStatus}
+                    className={`absolute bottom-0 right-0 size-3 rounded-full ring-2 ring-zinc-800 ${statusColors[status]} ${status === "connecting" ? "animate-bounce" : ""}`}
+                    aria-label={status}
                 />
         </div>
     );

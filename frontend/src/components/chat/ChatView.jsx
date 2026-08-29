@@ -1,16 +1,13 @@
-import React from 'react';
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
 import MessageComposer from "./MessageComposer";
 
-const ChatView = ({ messages, onSubmit, recipientData, senderId }) => {
+const ChatView = ({ messages, onSubmit, recipientData, senderId, status }) => {
     return (
         <div className="flex h-full flex-col relative min-w-100">
             <ChatHeader 
-                username={recipientData?.username || "Unknown User"} 
-                status={"offline"} // fixme: this should be the recipient's status
-                // but we don't have that data yet. 
-                // We can get it from the server when we fetch the recipient's data.
+                username={recipientData?.username || recipientData?.label}             
+                connectionStatus={status}
             />
 
             { messages.length ? (

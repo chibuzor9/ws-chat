@@ -27,6 +27,13 @@ const errorMessage = (error) => {
 }
 
 const initializeClient = async (client, content) => {
+    if (client.username) {
+        client.socket.send(JSON.stringify(
+            errorMessage("Client has already been initialized.")
+        ));
+        // console.error(`Client ${client.id} has already been initialized.`);
+        return;
+    }
     const username = content.username;
 
     if (context.usernameTOID.has(username)) { // takeover logic
@@ -56,8 +63,19 @@ const initializeClient = async (client, content) => {
         type: Message.TYPES.INIT_ACK,
         content: {
             clientId: client.id,
-            users,
-            groups
+            users: users.map((user) => {
+                return { 
+                    id: user.id, 
+                    username: user.username,
+                    status: context.clients.has(user.id) ? "online" : "offline"
+                };
+            }),
+            groups: groups.map((group) => {
+                return {
+                    id: group.id,
+                    label: group.label
+                };
+            })
         }
     }));
 
@@ -90,9 +108,6 @@ const messageHandler = async (client, message) => {
                 return;
             }
 
-            // await updateLastSeen(client.id); this causes more write no doubt
-            // it'd be lovely to handle this with the maps on the server
-
             client.socket.send(JSON.stringify({ 
                 type: Message.TYPES.PONG,
                 content: "Ping Acknowledged. Pong response sent."
@@ -102,7 +117,6 @@ const messageHandler = async (client, message) => {
         }
         case Message.TYPES.INIT: {
             await initializeClient(client, msgContent);
-
             break;
         }
         case Message.TYPES.CHAT: {
@@ -201,7 +215,8 @@ const messageHandler = async (client, message) => {
                     type: Message.TYPES.FETCH_MESSAGES,
                     content: {
                         conversationId: msgContent.conversationId,
-                        messages
+                        messages,
+                        status: context.clients.has(msgContent.conversationId) ? "online" : "offline"
                     }
                 });
                 
@@ -261,6 +276,7 @@ const messageHandler = async (client, message) => {
             });
 
             client.socket.send(JSON.stringify(response));
+
             // broadcastResponse(response, client.id); not needed yet, but could be useful 
             // for a "new group created" notification in the future
 

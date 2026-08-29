@@ -1,5 +1,3 @@
-import React from 'react';
-
 const MessageBubble = ({ data }) => { 
     const { content, sender, time, isGroup, mine } = data;
     
@@ -7,7 +5,7 @@ const MessageBubble = ({ data }) => {
         <div className={`bg-zinc-300 border border-zinc-700 p-2 rounded-2xl max-w-140 ${mine ? "self-end rounded-br-md" : "self-start rounded-bl-md"}`}>
             {isGroup && (
                 <span className="block text-xs font-medium text-zinc-600">
-                    {sender}
+                    {mine ? "You" : sender}
                 </span>
             )}
 
