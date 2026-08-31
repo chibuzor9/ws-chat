@@ -1,6 +1,10 @@
 import UserIcon from "../shared/UserIcon"
 
-const ChatHeader = ({ username, connectionStatus }) => {
+const ChatHeader = ({ username, connectionStatus, membershipStatus, isGroup, membershipHandler }) => {
+    const handleMembershipClick = () => {
+        membershipStatus ? membershipHandler("leave") : membershipHandler("join");
+    };
+    
     return (
         <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">
             <div className="flex items-center gap-2">
@@ -11,6 +15,19 @@ const ChatHeader = ({ username, connectionStatus }) => {
                     <span className="text-xs text-zinc-500">{connectionStatus}</span>
                 </div>
             </div>
+
+            {isGroup && (
+                <button
+                    className={`rounded-md px-2 py-1 text-sm font-semibold ${
+                        membershipStatus
+                            ? "bg-red-500 text-white hover:bg-red-600"
+                            : "bg-blue-500 text-white hover:bg-blue-600"
+                    }`}
+                    onClick={handleMembershipClick}
+                >
+                    {membershipStatus ? "Leave" : "Join"}
+                </button>
+            )}
         </div>
     )
 }

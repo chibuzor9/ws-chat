@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
-const MessageComposer = ({ onSend }) => {
+const MessageComposer = ({ onSend, memberStatus }) => {
     const [text, setText] = useState("");
 
     const send = () => {
+        if (!memberStatus) {
+            alert("You must be a member of this group to send messages.");
+            return
+        }; // prevent sending if not a member
         const trimmed = text.trim();
         if (!trimmed) return;
 
@@ -21,7 +25,7 @@ const MessageComposer = ({ onSend }) => {
                     placeholder="Start Typing..."
                     className="min-w-0 flex-1 bg-transparent px-3 py-1.5 text-sm text-zinc-800 outline-none placeholder:text-zinc-500"
                 />
-
+                
                 <button
                     onClick={send}
                     disabled={!text.trim()}

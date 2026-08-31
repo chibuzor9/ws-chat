@@ -8,9 +8,11 @@ type Executor = typeof db | Tx;
 type AddGroupMemberInput = {
     groupId: string;
     userId: string;
-    role: typeof groupRole.enumValues[number];
+    role?: typeof groupRole.enumValues[number];
     executor?: Executor;
 }
+
+type RemoveGroupMemberInput = Omit<AddGroupMemberInput, "role">;
 
 
 const getUserByUsername = async (username: string) => {
@@ -95,9 +97,11 @@ const getUserLabels = async (excludeUsername: string) => {
 const getGroupMembers = async (groupId: string) => {
     const rows = await db
         .select({
-            userId: groupMembers.userId
+            userId: groupMembers.userId,
+            username: users.username
         })
         .from(groupMembers)
+        .innerJoin(users, eq(users.id, groupMembers.userId))
         .where(eq(groupMembers.groupId, groupId));
 
     return rows;
@@ -176,6 +180,22 @@ const createGroup = async (label: string, createdBy: string) => {
     });
 }
 
+const removeGroupMember = async ({ groupId, userId, executor = db }: RemoveGroupMemberInput) => {
+    const deletedCount = await executor
+        .delete(groupMembers)
+        .where(
+            and(
+                ne(groupMembers.role, groupRole.enumValues[0]),
+                and(
+                    eq(groupMembers.groupId, groupId),
+                    eq(groupMembers.userId, userId)
+                )
+        )
+        );
+
+    return deletedCount;
+}
+
 export default {
     getUserByUsername,
     appendUsername,
@@ -188,5 +208,6 @@ export default {
     updateLastSeen,
     getGroupMessages,
     addGroupMember,
-    createGroup
+    createGroup,
+    removeGroupMember
 }

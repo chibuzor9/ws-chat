@@ -1,6 +1,6 @@
 import MessageBubble from './MessageBubble';
 
-const MessageList = ({ messages, isGroup, senderId }) => {
+const MessageList = ({ messages, isGroup, senderId, mapper }) => {
     return (
         <div className="flex flex-col gap-2 p-4 pb-24 overflow-y-scroll h-full scroll-fade">
             {messages && messages.map((message) => (
@@ -8,7 +8,7 @@ const MessageList = ({ messages, isGroup, senderId }) => {
                     key={message.id}
                     data = {{
                         content: message.content,
-                        sender: message.senderId,
+                        sender: message.senderId && mapper.get(message.senderId),
                         time: message.createdAt,
                         isGroup: isGroup,
                         mine: message.senderId === senderId.current // useRef instance 

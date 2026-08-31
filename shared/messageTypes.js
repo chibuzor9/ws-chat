@@ -7,4 +7,5 @@ export const TYPES = Object.freeze({
         INIT_ACK: "init_ack",
         FETCH_MESSAGES: "fetch_messages",
         CREATE_GROUP: "create_group",
+        MEMBERSHIP: "membership"
 });
