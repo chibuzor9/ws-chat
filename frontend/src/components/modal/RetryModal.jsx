@@ -1,5 +1,3 @@
-import React from 'react';
-
 const RetryModal = ({ onRetry }) => {
     return (
         <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl">

@@ -5,6 +5,7 @@ import dbModule from '../db/queries.ts';
 const { clients, usernameTOID, getSocketByUsername, getSocketById } = clientsModule;
 const {
     getUserByUsername,
+    getUserById,
     appendUsername,
     insertDirectMessage,
     insertGroupMessage, 
@@ -14,7 +15,9 @@ const {
     getGroupMessages,
     getGroupMembers,
     createGroup,
-    addGroupMember
+    joinGroup,
+    leaveGroup,
+    updateLastSeen
 } = dbModule;
 
 const context = { clients, usernameTOID, getSocketByUsername, getSocketById };
@@ -26,14 +29,25 @@ const errorMessage = (error) => {
     });
 }
 
+const initializationCheck = (client) => {
+    if(!context.clients.has(client.id)) {
+        client.socket.send(JSON.stringify(
+            errorMessage("Client has not initialized yet.")
+        ));
+        return false;
+    }
+
+    return true;
+};
+
 const initializeClient = async (client, content) => {
     if (client.username) {
         client.socket.send(JSON.stringify(
             errorMessage("Client has already been initialized.")
         ));
-        // console.error(`Client ${client.id} has already been initialized.`);
         return;
     }
+
     const username = content.username;
 
     if (context.usernameTOID.has(username)) { // takeover logic
@@ -53,6 +67,7 @@ const initializeClient = async (client, content) => {
     client.username = username;    
     context.usernameTOID.set(client.username, client.id);
     context.clients.set(client.id, client);
+    await updateLastSeen(client.id);
 
     const [users, groups] = await Promise.all([
         getUserLabels(client.username),
@@ -67,7 +82,7 @@ const initializeClient = async (client, content) => {
                 return { 
                     id: user.id, 
                     username: user.username,
-                    status: context.clients.has(user.id) ? "online" : "offline"
+                    status: context.clients.has(user.id) ? "online" : user.lastSeenAt
                 };
             }),
             groups: groups.map((group) => {
@@ -82,13 +97,13 @@ const initializeClient = async (client, content) => {
     console.log(`User ${client.username} initialized with ID: ${client.id}`);
 }
 
-const broadcastResponse = (response, excludeClientId = null) => {
-    context.clients.forEach((client) => {
-        if (client.id !== excludeClientId) {
-            client.socket.send(JSON.stringify(response));
-        }
-    });
-};
+// const broadcastResponse = (response, excludeClientId = null) => {
+//     context.clients.forEach((client) => {
+//         if (client.id !== excludeClientId) {
+//             client.socket.send(JSON.stringify(response));
+//         }
+//     });
+// };
 
 const messageHandler = async (client, message) => {
     const msgType = message.type;
@@ -101,12 +116,7 @@ const messageHandler = async (client, message) => {
 
     switch (msgType) {
         case Message.TYPES.PING: {
-            if(!context.clients.has(client.id)) {
-                client.socket.send(JSON.stringify(
-                    errorMessage("Client has not initialized yet.")
-                ));
-                return;
-            }
+            if (!initializationCheck(client)) return;            
 
             client.socket.send(JSON.stringify({ 
                 type: Message.TYPES.PONG,
@@ -120,18 +130,13 @@ const messageHandler = async (client, message) => {
             break;
         }
         case Message.TYPES.CHAT: {
-            if(!context.clients.has(client.id)) {
-                client.socket.send(JSON.stringify(
-                    errorMessage("Client has not initialized yet.")
-                ));
-                return;
-            }
+            if (!initializationCheck(client)) return;            
         
             if (msgContent.kind === "dm") {
                 if (msgContent.receiver === client.id) {
                     client.socket.send(JSON.stringify(
-                        errorMessage("You cannot send a direct message to yourself.")
-                    ));
+                        errorMessage("You cannot send a direct message to yourself."))
+                    );
                     return;
                 }
 
@@ -163,6 +168,15 @@ const messageHandler = async (client, message) => {
             }
 
             if (msgContent.kind === "gc") {
+                const groupMembers = await getGroupMembers(msgContent.receiver);
+
+                if (!groupMembers.some((member) => member.userId === client.id)) {
+                    client.socket.send(JSON.stringify(
+                        errorMessage("You are not a member of this group.")
+                    ));
+                    return;
+                }
+
                 const newMessage = await insertGroupMessage({
                     senderId: client.id, 
                     receiverGroupId: msgContent.receiver, 
@@ -183,8 +197,6 @@ const messageHandler = async (client, message) => {
                 
                 client.socket.send(JSON.stringify(response));
                 
-                const groupMembers = await getGroupMembers(newMessage.receiverGroupId);
-
                 groupMembers.forEach((member) => {
                     if (member.userId !== client.id) {
                         const memberSocket = context.getSocketById(member.userId);
@@ -198,30 +210,45 @@ const messageHandler = async (client, message) => {
             break;
         }
         case Message.TYPES.FETCH_MESSAGES: {
-            if(!context.clients.has(client.id)) {
-                client.socket.send(JSON.stringify(
-                    errorMessage("Client has not initialized yet.")
-                ));
-                return;
-            }
+            if (!initializationCheck(client)) return;            
 
             if (msgContent.kind === "dm") {
-                const messages = await getDirectMessages(
-                    client.id, 
-                    msgContent.conversationId
-                );
-                
+                const [messages, recipient] = await Promise.all([
+                    getDirectMessages(client.id, msgContent.conversationId),
+                    getUserById(msgContent.conversationId)
+                ]);
+
                 const response = new Message({
                     type: Message.TYPES.FETCH_MESSAGES,
                     content: {
                         conversationId: msgContent.conversationId,
                         messages,
-                        status: context.clients.has(msgContent.conversationId) ? "online" : "offline"
+                        status: context.clients.has(msgContent.conversationId)
+                                ? "online"
+                                : "offline",
+                        lastSeenAt: recipient?.lastSeenAt ?? null,
+                        isMember: true
                     }
                 });
-                
+
                 client.socket.send(JSON.stringify(response));
             } else if (msgContent.kind === "gc") {
+                const groupMembers = await getGroupMembers(msgContent.conversationId);
+
+                if (!groupMembers.some((member) => member.userId === client.id)) {
+                    client.socket.send(JSON.stringify(
+                        new Message({
+                            type: Message.TYPES.FETCH_MESSAGES,
+                            content: {
+                                isMember: false,
+                                conversationId: msgContent.conversationId,
+                                messages: []
+                            }
+                        })
+                    ));
+                    return;
+                }
+
                 const messages = await getGroupMessages(
                     msgContent.conversationId
                 );
@@ -230,7 +257,8 @@ const messageHandler = async (client, message) => {
                     type: Message.TYPES.FETCH_MESSAGES,
                     content: {
                         conversationId: msgContent.conversationId,
-                        messages
+                        messages,
+                        isMember: true
                     }
                 });
 
@@ -240,12 +268,7 @@ const messageHandler = async (client, message) => {
             break;
         }
         case Message.TYPES.CREATE_GROUP: {
-            if(!context.clients.has(client.id)) {
-                client.socket.send(JSON.stringify(
-                    errorMessage("Client has not initialized yet.")
-                ));
-                return;
-            }
+            if (!initializationCheck(client)) return;            
 
             let group;
 
@@ -281,6 +304,70 @@ const messageHandler = async (client, message) => {
             // for a "new group created" notification in the future
 
             break;            
+        }
+        case Message.TYPES.MEMBERSHIP: {
+            if (!initializationCheck(client)) return;     
+            
+            const groupMembers = await getGroupMembers(msgContent.groupId);
+            
+            if (msgContent.action === "join") {
+                if (groupMembers.some((member) => member.userId === client.id)) {
+                    client.socket.send(JSON.stringify(
+                        errorMessage("You are already a member of this group.")
+                    ));
+                    return;
+                }
+
+                await joinGroup({
+                    groupId: msgContent.groupId, 
+                    userId: client.id
+                });
+
+                await messageHandler(client, new Message({
+                    type: Message.TYPES.FETCH_MESSAGES,
+                    content: {
+                        conversationId: msgContent.groupId,
+                        kind: "gc"
+                    }
+                }));
+            }
+
+            if (msgContent.action === "leave") {
+                if (!groupMembers.some((member) => member.userId === client.id)) {
+                    client.socket.send(JSON.stringify(
+                        errorMessage("You are not a member of this group.")
+                    ));
+                    return;
+                }
+
+                const outcome = await leaveGroup({
+                    groupId: msgContent.groupId,
+                    userId: client.id
+                });
+
+                if (outcome.groupDeleted) { // if sole member left, group is gone
+                    client.socket.send(JSON.stringify(new Message({
+                        type: Message.TYPES.MEMBERSHIP,
+                        content: {
+                            action: "leave",
+                            groupId: msgContent.groupId,
+                            groupDeleted: true
+                        }
+                    })));
+
+                    return;
+                }
+
+                await messageHandler(client, new Message({
+                    type: Message.TYPES.FETCH_MESSAGES,
+                    content: {
+                        conversationId: msgContent.groupId,
+                        kind: "gc"
+                    }
+                }));
+            }
+
+            break;
         }
         case Message.TYPES.ERROR:
             console.log(`Error message received: ${msgContent}`);

@@ -17,7 +17,8 @@ const ChatView = ({
         <div className="flex h-full flex-col relative min-w-100">
             <ChatHeader 
                 username={recipientData?.username || recipientData?.label}             
-                connectionStatus={status}
+                connectionStatus={status?.status}
+                lastSeenAt={status?.lastSeenAt}
                 membershipStatus={isMember}
                 isGroup={isGroup}
                 membershipHandler={membershipHandler}

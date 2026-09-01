@@ -59,7 +59,13 @@ const messageHandler = (message) => { // message string
             return {
                 conversationId: msgContent.conversationId,
                 messages: msgContent.messages,
-                status: msgContent.status
+                status: msgContent.status,
+                lastSeenAt: msgContent.lastSeenAt,
+                memberStatus: msgContent.isMember
+            };
+        case Message.TYPES.MEMBERSHIP:
+            return {
+                groupRemoved: msgContent.groupDeleted ? msgContent.groupId : null
             };
         case Message.TYPES.ERROR:
             console.log(`Error message received: ${msgContent}`);

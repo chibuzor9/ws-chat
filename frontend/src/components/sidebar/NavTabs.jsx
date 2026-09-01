@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronRight, Plus } from 'lucide-react';
 
 const NavTabs = ({ label, items = [], onSubmit, onCreate, isGroup }) => {

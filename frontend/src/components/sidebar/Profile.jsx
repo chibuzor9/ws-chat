@@ -1,4 +1,3 @@
-import React from 'react';
 import UserIcon from '../shared/UserIcon';
 import { LogOut } from "lucide-react";
 

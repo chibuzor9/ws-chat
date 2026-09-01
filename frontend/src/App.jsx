@@ -15,12 +15,14 @@ function App() {
     const [tabsData, setTabsData] = useState({});
     const [messages, setMessages] = useState({});
     const [retry, setRetry] = useState(0);
+    const [membership, setMembership] = useState(false);
     const socket = useRef(null);
     const senderId = useRef(null);
     const tabsDataMap = {
         users: new Map(tabsData?.users?.map((user) => [user.id, user])),
         groups: new Map(tabsData?.groups?.map((group) => [group.id, group]))
     }
+    const IDtoUsernameMap = new Map(tabsData?.users?.map((user) => [user.id, user.username]));
 
     const handleUserLogout = () => {
         socket.current?.close(1000, "User logged out");
@@ -30,6 +32,7 @@ function App() {
         setTabsData({});
         setMessages({});
         setConnectionStatus("offline");
+        setMembership(false);
     }
 
     const handleRetryDependency = () => {
@@ -80,6 +83,22 @@ function App() {
         }
     };
 
+    const handleMembershipChange = (action) => {
+        if (!convo || convo.kind !== "gc") return;
+
+        const membershipMsg = new Message({
+            type: Message.TYPES.MEMBERSHIP,
+            content: {
+                action,
+                groupId: convo.conversationId
+            }
+        });
+
+        if (socket.current && socket.current.readyState === WebSocket.OPEN) {
+            socket.current.send(JSON.stringify(membershipMsg));
+        }
+    };
+
     useEffect(() => { // establish WebSocket connection
         if (!username) return; // base case for no username
 
@@ -98,13 +117,13 @@ function App() {
                 const pingMsg = new Message({ type: Message.TYPES.PING, content: "ping" })
 
                 const initAck = new Promise((resolve) => {
-                    (() => {
-                        ws.send(JSON.stringify({ 
-                            type: Message.TYPES.INIT, 
-                            content: { username } 
-                        }));
-                        resolve();
-                    })();
+                    const initMsg = new Message({
+                        type: Message.TYPES.INIT,
+                        content: { username }
+                    });
+                    
+                    ws.send(JSON.stringify(initMsg));
+                    resolve();
                 });
 
                 initAck.then(() => {
@@ -151,11 +170,36 @@ function App() {
                         ...prev,
                         users: prev.users.map((user) => {
                             if (user.id === result.conversationId) {
-                                return { ...user, status: result.status };
+                                return {
+                                    ...user,
+                                    status: result.status,
+                                    lastSeenAt: result.lastSeenAt ?? user.lastSeenAt
+                                };
                             }
                             return user;
                         })
                     })); 
+                    setMembership(result.memberStatus); // set membership status for groups
+                }
+
+                if (result && result.groupRemoved) {
+                    setTabsData((prev) => ({
+                        ...prev,
+                        groups: (prev.groups || []).filter(
+                            (group) => group.id !== result.groupRemoved
+                        )
+                    }));
+
+                    setMessages((prev) => {
+                        const next = { ...prev };
+                        delete next[result.groupRemoved];
+
+                        return next;
+                    });
+
+                    setConvo((prev) =>
+                        prev?.conversationId === result.groupRemoved ? null : prev
+                    );
                 }
 
                 if (result && result.chat) {
@@ -197,7 +241,7 @@ function App() {
                         users: prev.users?.map((user) => ({ ...user, status: "inactive" }))
                     }));
 
-                    console.log("Connection closed due to another session taking over the username.");
+                    console.log("Connection closed due to another session taking over.");
                 }
 
                 if (!disposed) {
@@ -266,21 +310,22 @@ function App() {
                         messages={messages[convo.conversationId] || []}
                         onSubmit={handleChatSubmit}
                         recipientData={tabsDataMap.users.get(convo.conversationId) || tabsDataMap.groups.get(convo.conversationId)}
-                        status={(() => {
-                            if (connectionStatus !== "online") return "inactive";
-
-                            if (tabsDataMap.users?.has(convo?.conversationId)) {
-                                return tabsDataMap.users.get(convo.conversationId)?.status
-                            }
-
-                            return "online"
-                        })()}
+                        status={{
+                            status: connectionStatus !== "online"
+                                ? "inactive"
+                                : tabsDataMap.users?.get(convo?.conversationId)?.status ?? "online",
+                            lastSeenAt: tabsDataMap.users?.get(convo?.conversationId)?.lastSeenAt
+                        }}
                         senderId={senderId} // accessed current val in MessageList.jsx
+                        isMember={membership}
+                        isGroup={convo.kind === "gc"}
+                        membershipHandler={handleMembershipChange}
+                        mapper={IDtoUsernameMap}
                     /> 
                     : 
                     <div className="flex h-full items-center justify-center px-6">
                         <p className="text-center text-sm text-zinc-500">
-                            Pick someone from the sidebar to start reading.
+                            Pick someone from the sidebar to start chatting.
                         </p>
                     </div>
                 }

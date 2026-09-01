@@ -1,5 +1,3 @@
-import React from 'react';
-
 const Modal = ({ open, children }) => {
     const isOpen = open ?? false;
     
