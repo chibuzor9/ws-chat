@@ -45,3 +45,9 @@ Thumbs.db
 # =========================
 *.log
 *.lock
+
+# =========================
+# Personal notes (deliberately excluded)
+# =========================
+TODO.txt
+DECISIONS.md

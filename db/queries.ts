@@ -86,7 +86,8 @@ const getUserLabels = async (excludeUsername: string) => {
     const rows = await db
         .select({
             id: users.id,
-            username: users.username
+            username: users.username,
+            lastSeenAt: users.lastSeenAt
         })
         .from(users)
         .where(ne(users.username, excludeUsername));
@@ -149,7 +150,7 @@ const updateLastSeen = async (userId: string) => {
         .where(eq(users.id, userId));
 }
 
-const addGroupMember = async ({ 
+const joinGroup = async ({ 
     groupId, 
     userId, 
     role = groupRole.enumValues[1], 
@@ -174,30 +175,84 @@ const createGroup = async (label: string, createdBy: string) => {
             .values({ label, createdBy })
             .returning({ id: groups.id, label: groups.label });
 
-        await addGroupMember({ groupId: group.id, userId: createdBy, role: groupRole.enumValues[0], executor: tx });
+        await joinGroup({ groupId: group.id, userId: createdBy, role: groupRole.enumValues[0], executor: tx });
 
         return group;
     });
 }
 
-const removeGroupMember = async ({ groupId, userId, executor = db }: RemoveGroupMemberInput) => {
-    const deletedCount = await executor
-        .delete(groupMembers)
-        .where(
-            and(
-                ne(groupMembers.role, groupRole.enumValues[0]),
+const getUserById = async (userId: string) => {
+    const [user] = await db
+        .select({
+            id: users.id,
+            username: users.username,
+            lastSeenAt: users.lastSeenAt
+        })
+        .from(users)
+        .where(eq(users.id, userId));
+
+    return user ?? null;
+}
+
+const leaveGroup = async ({ groupId, userId }: RemoveGroupMemberInput) => {
+    return await db.transaction(async (tx) => {
+        const [member] = await tx
+            .select({ role: groupMembers.role })
+            .from(groupMembers)
+            .where(
                 and(
                     eq(groupMembers.groupId, groupId),
                     eq(groupMembers.userId, userId)
                 )
-        )
-        );
+            );
 
-    return deletedCount;
+        if (!member) return { left: false, groupDeleted: false, promotedUserId: null };
+
+        // delete BEFORE promoting: this leaves zero admins for an instant, which
+        // one_admin_per_group allows. Promoting first would mean two.
+        await tx
+            .delete(groupMembers)
+            .where(
+                and(
+                    eq(groupMembers.groupId, groupId),
+                    eq(groupMembers.userId, userId)
+                )
+            );
+
+        if (member.role !== groupRole.enumValues[0]) {
+            return { left: true, groupDeleted: false, promotedUserId: null };
+        }
+
+        const [successor] = await tx
+            .select({ userId: groupMembers.userId })
+            .from(groupMembers)
+            .where(eq(groupMembers.groupId, groupId))
+            .orderBy(asc(groupMembers.joinedAt))
+            .limit(1);
+
+        if (!successor) { // sole member left - cascade members and messages
+            await tx.delete(groups).where(eq(groups.id, groupId));
+
+            return { left: true, groupDeleted: true, promotedUserId: null };
+        }
+
+        await tx
+            .update(groupMembers)
+            .set({ role: groupRole.enumValues[0] })
+            .where(
+                and(
+                    eq(groupMembers.groupId, groupId),
+                    eq(groupMembers.userId, successor.userId)
+                )
+            );
+
+        return { left: true, groupDeleted: false, promotedUserId: successor.userId };
+    });
 }
 
 export default {
     getUserByUsername,
+    getUserById,
     appendUsername,
     insertDirectMessage,
     insertGroupMessage,
@@ -207,7 +262,7 @@ export default {
     getDirectMessages,
     updateLastSeen,
     getGroupMessages,
-    addGroupMember,
+    joinGroup,
     createGroup,
-    removeGroupMember
+    leaveGroup
 }
